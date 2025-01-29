@@ -15,7 +15,7 @@ const userLogout = async (req, res) => {
 
 const userProfile = async (req, res) => {
   try {
-    const { role, id } = req.user;
+    const {  id } = req.user;
 
     const user = await User.findById(id).select("-password");
     res.status(200).json({ success: true, user });

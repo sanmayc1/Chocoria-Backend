@@ -22,7 +22,8 @@ const auth_Admin_login = async(req, res) => {
       });
     }
     //check password
-    const isMatch = compare(req.body.password, user.password);
+    const isMatch = await compare(req.body.password, user.password);
+   
     if (!isMatch) {
       return res.status(401).json({
         success: false,

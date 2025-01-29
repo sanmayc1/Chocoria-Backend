@@ -3,6 +3,7 @@ import { auth_login, auth_SignUp, auth_With_Google, resend_Otp, verify_Otp } fro
 import userDataValidation from '../Middleware/validation.js'
 import { userLogout, userProfile } from '../Controller/userController.js'
 import jwtVerify from '../Middleware/jwtVerify.js'
+import { get_Product_Details, get_Products } from '../Controller/productController.js'
 
 const user_Route = Router()
 
@@ -19,7 +20,11 @@ user_Route.post("/logout",userLogout)
 
 // user profile routes
 
-user_Route.get("/profile",jwtVerify,userProfile)   
+user_Route.get("/profile",jwtVerify,userProfile) 
+
+user_Route.get("/products",get_Products)
+
+user_Route.get("/products/:id",get_Product_Details)
 
 
 

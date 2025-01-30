@@ -158,7 +158,6 @@ const edit_product = async (req, res) => {
     const images = req.files.map((file) => `/img/${file.filename}`);
     const {id} = req.params;
     const variants = JSON.parse(req.body.variants)
-    console.log(variants);
     const product = await Product.findById(id);
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });

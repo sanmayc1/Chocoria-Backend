@@ -71,6 +71,12 @@ const auth_With_Google = async (req, res) => {
         });
       }
       // if before signUp with google allow login
+      if (existingUser.is_Blocked) {
+        return res.status(403).json({
+          success: false,
+          message: "Account blocked please contact support",
+        });
+      }
 
       const userDetails = { id: existingUser.id, role: existingUser.role };
       const token = tokenGenerate(userDetails);
@@ -186,6 +192,13 @@ const auth_login = async (req, res) => {
         message: "Registered with Google. Please log in using Google.",
       });
     }
+      //  blocked user
+      if (user.is_Blocked) {
+        return res.status(403).json({
+          success: false,
+          message: "Account blocked please contact support",
+        });
+      }
     // not verified user
     if (!user.is_Verified) {
       await sendOtpEmail(user.email, user.id, user.username);
@@ -195,8 +208,9 @@ const auth_login = async (req, res) => {
         id: user.id,
       });
     }
+  
     //matching user password
-    const match = compare(req.body.password, user.password);
+    const match = await compare(req.body.password, user.password);
     if (!match) {
       return res.status(401).json({
         success: false,
@@ -216,7 +230,7 @@ const auth_login = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: true,
-      sameSite: "strict",
+      sameSite: "none",
     });
     res.status(200).json({
       success: true,

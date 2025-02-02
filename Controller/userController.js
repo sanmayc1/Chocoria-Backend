@@ -114,8 +114,7 @@ const delete_user = async (req, res) => {
 const update_profile = async (req, res) => {
   try {
     const {  id } = req.user;
-    console.log(req.body);
-   
+    
     const user = await User.findById(id);
     if (!user) {
       return res
@@ -135,4 +134,124 @@ const update_profile = async (req, res) => {
   }
 };
 
-export { userLogout, userProfile, fetch_all_users, block_user, delete_user , update_profile };
+
+// add new user address 
+ 
+const add_new_address = async (req, res) => {
+  try {
+    const {  id } = req.user;
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    user.address.push(req.body);
+    await user.save();
+    
+    res.status(200).json({ success: true, message: "Updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// get all user address
+
+const get_all_address = async (req, res) => {
+  try {
+    const {  id } = req.user;
+   
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    res.status(200).json({ success: true, addresses: user.address });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// delte user address
+
+const delete_address = async (req, res) => {
+  try {
+    const {  id } = req.user;
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    user.address = user.address.filter((address) => address._id.toString() !== req.params.id);
+    await user.save();
+    
+    res.status(200).json({ success: true, message: "Address deleted successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// update user address
+
+const update_address = async (req, res) => {
+  try {
+    const {  id } = req.user;
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    user.address = user.address.map((address) =>
+      address._id.toString() === req.params.id ? req.body : address
+    );
+    await user.save();
+    
+    res.status(200).json({ success: true, message: "Address updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// get address by id
+
+const get_address_by_id = async (req, res) => {
+  try {
+    const {  id } = req.user;
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const address = user.address.find((address) => address._id.toString() === req.params.id);
+    if (!address) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Address not found" });
+    }
+
+    res.status(200).json({ success: true, message: "Address fetched successfully", address });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export { userLogout, userProfile, fetch_all_users, block_user, delete_user , update_profile, add_new_address , get_all_address, delete_address, update_address, get_address_by_id};

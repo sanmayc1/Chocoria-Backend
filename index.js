@@ -9,7 +9,7 @@ import path from "path";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import decodeJwt from "./utils/decodeJwt.js";
-import socketHandler from "./config/ConnectDb/socketHandler.js";
+import socketHandler from "./config/Socket/socketHandler.js";
 
 const app = express();
 const server = createServer(app);

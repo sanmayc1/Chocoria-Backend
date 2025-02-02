@@ -18,7 +18,7 @@ const socketHandler = (io) => {
       socket.on("disconnect", () => {
         if (userId) {
           delete activeUsers[userId];
-          
+    
         }
         
       });

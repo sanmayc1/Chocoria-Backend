@@ -1,7 +1,7 @@
 import express from "express";
 import { PORT } from "./utils/envValues.js";
 import connectMongose from "./config/ConnectDb/MongoDbConnect.js";
-import user_Route from "./Routes/userRoute.js";
+import user_Route from "./Routes/UserRoutes/userRoute.js";
 import admin_Route from "./Routes/adminRoute.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";

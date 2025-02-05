@@ -11,8 +11,10 @@ const socketHandler = (io) => {
     //   
       if (token) {
         const decodedToken = decodeJwt(token);
+       if (decodedToken) {
         userId = decodedToken.id;
         activeUsers[userId] = socket.id;
+       }
       }
     // disconnect user
       socket.on("disconnect", () => {

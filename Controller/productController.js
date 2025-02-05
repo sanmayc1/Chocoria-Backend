@@ -110,9 +110,11 @@ const delete_Product = async (req, res) => {
 
 const get_Product_Details = async (req, res) => {
   try {
-    const {id} = req.params;
+    const { id } = req.params;
+   
     const product = await Product.findById(id);
-    const recomendation = await Product.find({category:product.category})
+    const recomendation = await Product.find({ category: product.category });
+
     return res.status(200).json({
       success: true,
       message: "successfully fetched products",

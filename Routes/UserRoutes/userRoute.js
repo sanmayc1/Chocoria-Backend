@@ -6,7 +6,7 @@ import jwtVerify from '../../Middleware/jwtVerify.js'
 import cart_Route from './cartRoute.js'
 import address_Route from './addressRoute.js'
 import product_Route from './productsRoutes.js'
-
+import order_Route from './OrderRoutes.js'
 const user_Route = Router()
 
 
@@ -38,6 +38,10 @@ user_Route.use("/address",jwtVerify,address_Route)
 //  Cart routes 
 
 user_Route.use("/cart",jwtVerify,cart_Route)
+
+// order routes
+
+user_Route.use("/order",jwtVerify,order_Route)
 
 
 

@@ -2,7 +2,7 @@ import Product from "../Model/productModel.js";
 import fs from "fs";
 // add new product
 
-const add_product = async (req, res) => {
+const addProduct = async (req, res) => {
   try {
     const { name, brand, category, description, ingredients, } =
       req.body;
@@ -39,7 +39,7 @@ const add_product = async (req, res) => {
 
 // fetch all products
 
-const get_Products = async (req, res) => {
+const getProducts = async (req, res) => {
   try {
     const products = await Product.find();
     
@@ -189,4 +189,4 @@ const edit_product = async (req, res) => {
   }
 }
 
-export { add_product, get_Products, product_Soft_Delete, delete_Product ,get_Product_Details,edit_product};
+export {  addProduct , getProducts, product_Soft_Delete, delete_Product ,get_Product_Details,edit_product};

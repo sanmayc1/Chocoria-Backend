@@ -189,4 +189,6 @@ const edit_product = async (req, res) => {
   }
 }
 
+
+
 export {  addProduct , getProducts, product_Soft_Delete, delete_Product ,get_Product_Details,edit_product};

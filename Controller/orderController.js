@@ -95,8 +95,8 @@ const get_all_orders_by_user_id = async (req, res) => {
   }
 };
 
-// get all order item
-const get_order_item_details = async (req, res) => {
+// get specific order item by  and item id
+const getOrderItemDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -129,7 +129,7 @@ const get_all_orders = async (req, res) => {
 }
 
 // get order items by order id
-const get_order_items_by_order_id = async (req, res) => {
+const getAllItemsByOrderId = async (req, res) => {
   try {
     const { id } = req.params;
     const orderItems = await OrderItem.find({ orderId: id }).populate("productId");
@@ -142,5 +142,20 @@ const get_order_items_by_order_id = async (req, res) => {
   }
 }
 
+// change order status
+const changeOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const order = await OrderItem.findOne({ _id: id });
+    order.status = status;
+    await order.save();
+    res.status(200).json({ success: true, message: "Order status changed" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+}
 
-export { create_Order, get_all_orders_by_user_id, get_order_item_details, get_all_orders ,get_order_items_by_order_id};
+
+export { create_Order, get_all_orders_by_user_id, getOrderItemDetails  , get_all_orders ,getAllItemsByOrderId ,changeOrderStatus };

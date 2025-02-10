@@ -11,7 +11,7 @@ import {
   add_to_category,
   delete_category,
   edit_category,
-  get_categories,
+  getCategories,
   soft_Delete_category,
 } from "../../Controller/categoryController.js";
 import { products } from "../../utils/multerStorage.js";
@@ -48,7 +48,7 @@ admin_Route.post("/add-category", jwtVerify, verifyAdmin, add_to_category);
 
 // get all categories
 
-admin_Route.get("/category", jwtVerify, verifyAdmin, get_categories);
+admin_Route.get("/category", jwtVerify, verifyAdmin,getCategories);
 
 // edit category
 

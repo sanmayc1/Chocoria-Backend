@@ -4,11 +4,9 @@ import fs from "fs";
 
 const addProduct = async (req, res) => {
   try {
-    const { name, brand, category, description, ingredients, } =
-      req.body;
-    const variants = JSON.parse(req.body.variants)
-    
-   
+    const { name, brand, category, description, ingredients } = req.body;
+    const variants = JSON.parse(req.body.variants);
+
     const images = req.files.map((file) => `/img/${file.filename}`);
 
     const newProduct = new Product({
@@ -42,8 +40,7 @@ const addProduct = async (req, res) => {
 const getProducts = async (req, res) => {
   try {
     const products = await Product.find();
-    
-    
+
     res.status(200).json({
       success: true,
       message: "successfully fetched products",
@@ -60,7 +57,7 @@ const getProducts = async (req, res) => {
 const product_Soft_Delete = async (req, res) => {
   try {
     const { id } = req.body;
-    
+
     const product = await Product.findById(id);
     if (!product) {
       return res
@@ -86,7 +83,7 @@ const product_Soft_Delete = async (req, res) => {
 const delete_Product = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const product = await Product.findById(id);
     if (!product) {
       return res
@@ -111,7 +108,7 @@ const delete_Product = async (req, res) => {
 const get_Product_Details = async (req, res) => {
   try {
     const { id } = req.params;
-   
+
     const product = await Product.findById(id);
     const recomendation = await Product.find({ category: product.category });
 
@@ -134,15 +131,20 @@ const recommend_Products = async (req, res) => {
     const { id } = req.params;
     const product = await Product.findById(id);
 
-    if(!product){
-      return res.status(404).json({success:false,message:"Product not found"})
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
     }
 
-    const sameCategory = await Product.find({category:product.category}).limit(3)
-    const priceRange = await Product.find({price:{$gte:product.price-100,$lte:product.price+100}}).limit(3)
-    const recomendation = [...sameCategory,...priceRange]
-  
-  
+    const sameCategory = await Product.find({
+      category: product.category,
+    }).limit(3);
+    const priceRange = await Product.find({
+      price: { $gte: product.price - 100, $lte: product.price + 100 },
+    }).limit(3);
+    const recomendation = [...sameCategory, ...priceRange];
+
     return res.status(200).json({
       success: true,
       message: "successfully fetched products",
@@ -154,17 +156,18 @@ const recommend_Products = async (req, res) => {
   }
 };
 
-
 // edit product
 const edit_product = async (req, res) => {
   try {
-    const {  name, brand, category, description, ingredients } = req.body;
+    const { name, brand, category, description, ingredients } = req.body;
     const images = req.files.map((file) => `/img/${file.filename}`);
-    const {id} = req.params;
-    const variants = JSON.parse(req.body.variants)
+    const { id } = req.params;
+    const variants = JSON.parse(req.body.variants);
     const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
     }
 
     // delete old images
@@ -173,7 +176,7 @@ const edit_product = async (req, res) => {
     });
 
     //delete old varients
- 
+
     product.name = name;
     product.brand = brand;
     product.category = category;
@@ -187,8 +190,92 @@ const edit_product = async (req, res) => {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
-}
+};
 
+// search products
 
+const searchProducts = async (req, res) => {
+  try {
+    const { q, sortBy, rating, category } = req.query;
 
-export {  addProduct , getProducts, product_Soft_Delete, delete_Product ,get_Product_Details,edit_product};
+    const query = decodeURIComponent(q);
+
+    const filter = {};
+
+    if (query) {
+      filter.name = { $regex: query, $options: "i" };
+    }
+
+    if (category) {
+      filter.category = category;
+    }
+
+    // if(rating){
+    //   filter.rating = {
+    //     $gte: rating
+    //   }
+    // }
+
+    const sortOptions = {};
+
+    if (sortBy) {
+      if (sortBy === "aA-zZ") {
+        sortOptions.name = 1;
+      } else if (sortBy === "zZ-aA") {
+        sortOptions.name = -1;
+      } else if (sortBy === "newArrival") {
+        sortOptions.createdAt = -1;
+      } else if (sortBy === "highToLow") {
+        sortOptions.firstVariantPrice = -1;
+      } else if (sortBy === "lowToHigh") {
+        sortOptions.firstVariantPrice = 1;
+      }
+    }
+
+    if (sortBy === "highToLow" || sortBy === "lowToHigh") {
+      const products = await Product.aggregate([
+        {
+          $match: filter,
+        },
+        {
+          $addFields: {
+            firstVariantPrice: {
+              $arrayElemAt: ["$variants.price", 0],
+            },
+          },
+        },
+        {
+          $sort: sortOptions,
+        },
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        message: "successfully fetched products",
+        products,
+      });
+    }
+
+    const products = await Product.find(filter).sort(sortOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: "successfully fetched products",
+      products,
+    });
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export {
+  addProduct,
+  getProducts,
+  product_Soft_Delete,
+  delete_Product,
+  get_Product_Details,
+  edit_product,
+  searchProducts,
+};

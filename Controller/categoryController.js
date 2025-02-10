@@ -27,7 +27,7 @@ const add_to_category = async (req, res) => {
 
 // fetch all category
 
-const get_categories = async (req, res) => {
+const getCategories = async (req, res) => {
   try {
     const docs = await Category.find();
 
@@ -111,7 +111,7 @@ const soft_Delete_category = async (req, res) => {
 
 export {
   add_to_category,
-  get_categories,
+  getCategories,
   edit_category,
   delete_category,
   soft_Delete_category,

@@ -1,10 +1,11 @@
 import express from "express";
-import { get_all_orders, get_order_items_by_order_id } from "../../Controller/orderController.js";
+import { changeOrderStatus, get_all_orders,getAllItemsByOrderId} from "../../Controller/orderController.js";
 const admin_Order_Route = express.Router()
 
 //Get all orders
 
 admin_Order_Route.get("/",get_all_orders)
-admin_Order_Route.get("/:id",get_order_items_by_order_id)
+admin_Order_Route.patch("/:id",changeOrderStatus)
+admin_Order_Route.get("/:id",getAllItemsByOrderId)
 
 export default admin_Order_Route

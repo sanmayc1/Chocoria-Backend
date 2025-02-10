@@ -7,6 +7,7 @@ import cart_Route from './cartRoute.js'
 import address_Route from './addressRoute.js'
 import product_Route from './productsRoutes.js'
 import order_Route from './OrderRoutes.js'
+import { getCategories } from '../../Controller/categoryController.js'
 const user_Route = Router()
 
 
@@ -28,7 +29,7 @@ user_Route.get("/profile",jwtVerify,userProfile)
 user_Route.patch("/update-profile",jwtVerify,update_profile)
 
 //  product routes
-
+user_Route.get("/categories",getCategories)
 user_Route.use("/products",product_Route)
 
 // Address routes

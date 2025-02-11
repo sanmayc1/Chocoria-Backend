@@ -1,7 +1,7 @@
 import {Router} from 'express'
 import { auth_login, auth_SignUp, auth_With_Google, resend_Otp, verify_Otp } from '../../Controller/auth.js'
 import userDataValidation from '../../Middleware/validation.js'
-import {  update_profile, userLogout, userProfile } from '../../Controller/userController.js'
+import {  forgetPassword, resetPassword, update_profile, userLogout, userProfile } from '../../Controller/userController.js'
 import jwtVerify from '../../Middleware/jwtVerify.js'
 import cart_Route from './cartRoute.js'
 import address_Route from './addressRoute.js'
@@ -11,7 +11,6 @@ import { getCategories } from '../../Controller/categoryController.js'
 const user_Route = Router()
 
 
-// user routes
 
 // user auth routes
 user_Route.post("/auth/signup",userDataValidation,auth_SignUp)
@@ -21,7 +20,8 @@ user_Route.post("/resend-otp",resend_Otp)
 user_Route.post("/auth/login",auth_login)
 user_Route.post("/logout",userLogout)
 
-
+user_Route.post("/forget-password",forgetPassword)
+user_Route.patch("/reset-password",resetPassword)
 
 // user profile routes
 

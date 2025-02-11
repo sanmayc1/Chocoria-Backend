@@ -201,6 +201,7 @@ const searchProducts = async (req, res) => {
     const query = decodeURIComponent(q);
 
     const filter = {};
+    filter.is_deleted = false;
 
     if (query) {
       filter.name = { $regex: query, $options: "i" };

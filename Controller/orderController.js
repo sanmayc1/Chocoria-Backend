@@ -2,7 +2,7 @@ import Order from "../Model/orderModel.js";
 import OrderItem from "../Model/orderItemsModel.js";
 import Product from "../Model/productModel.js";
 import dateFormat from "../utils/dateFormat.js";
-
+import OrderCancelRequest from "../Model/orderCancelRequest.js";
 
 // create order
 const create_Order = async (req, res) => {
@@ -37,22 +37,22 @@ const create_Order = async (req, res) => {
         const orderItem = new OrderItem({
           orderId: order._id,
           productId: item.productId._id,
-          name:item.productId.name,
-          brand:item.productId.brand,
-          img:item.productId.images[0],
+          name: item.productId.name,
+          brand: item.productId.brand,
+          img: item.productId.images[0],
           variant: item.variant,
           quantity: item.quantity,
           totalPrice: item.variant.price * item.quantity,
         });
-        
+
         const savedOrderItem = await orderItem.save();
         const product = await Product.findById(item.productId._id);
         product.variants = product.variants.map((variant) => {
-            if (variant.id === item.variant.id) {
-              return { ...variant, quantity: variant.quantity - item.quantity }; // Update variant quantity correctly
-            }
-            return variant;
-          });
+          if (variant.id === item.variant.id) {
+            return { ...variant, quantity: variant.quantity - item.quantity }; // Update variant quantity correctly
+          }
+          return variant;
+        });
         await product.save();
         return savedOrderItem._id;
       })
@@ -60,8 +60,6 @@ const create_Order = async (req, res) => {
 
     order.items = orderItems;
     await order.save();
-
-
 
     res.status(200).json({
       success: true,
@@ -73,7 +71,6 @@ const create_Order = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
 
 // get all orders by user id
 const get_all_orders_by_user_id = async (req, res) => {
@@ -87,7 +84,6 @@ const get_all_orders_by_user_id = async (req, res) => {
       },
     });
 
-
     res.status(200).json({ success: true, orders });
   } catch (error) {
     console.log(error);
@@ -100,7 +96,9 @@ const getOrderItemDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const orderItem = await OrderItem.findOne({ _id: id }).populate("productId");
+    const orderItem = await OrderItem.findOne({ _id: id }).populate(
+      "productId"
+    );
     const order = await Order.findOne({ _id: orderItem.orderId });
 
     res.status(200).json({ success: true, orderItem, order });
@@ -110,29 +108,29 @@ const getOrderItemDetails = async (req, res) => {
   }
 };
 
-
-// get all orders 
- 
+// get all orders
 
 const get_all_orders = async (req, res) => {
   try {
-   let orders = await Order.find()
-   orders = orders.map((order) => {
-    const orderDate = dateFormat(order.orderDate)
-    return {...order._doc, orderDate}
-   })
+    let orders = await Order.find();
+    orders = orders.map((order) => {
+      const orderDate = dateFormat(order.orderDate);
+      return { ...order._doc, orderDate };
+    });
     res.status(200).json({ success: true, orders });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
-}
+};
 
 // get order items by order id
 const getAllItemsByOrderId = async (req, res) => {
   try {
     const { id } = req.params;
-    const orderItems = await OrderItem.find({ orderId: id }).populate("productId");
+    const orderItems = await OrderItem.find({ orderId: id }).populate(
+      "productId"
+    );
     const order = await Order.findOne({ _id: id });
 
     res.status(200).json({ success: true, orderItems, order });
@@ -140,7 +138,7 @@ const getAllItemsByOrderId = async (req, res) => {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
-}
+};
 
 // change order status
 const changeOrderStatus = async (req, res) => {
@@ -148,6 +146,17 @@ const changeOrderStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     const order = await OrderItem.findOne({ _id: id });
+    if (status === "Cancelled") {
+      const product = await Product.findById(order.productId);
+      product.variants = product.variants.map((variant) => {
+        if (variant.id === order.variant.id) {
+          return { ...variant, quantity: variant.quantity + order.quantity }; // Update variant quantity correctly
+        }
+        return variant;
+      });
+      await product.save();
+    }
+
     order.status = status;
     await order.save();
     res.status(200).json({ success: true, message: "Order status changed" });
@@ -155,7 +164,127 @@ const changeOrderStatus = async (req, res) => {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
-}
+};
 
+// order cancel request
+const createOrderCancelRequest = async (req, res) => {
+  try {
+    const { id: orderId } = req.params;
+    const { id: userId } = req.user;
+    const { reason, explanation, orderItemId } = req.body;
 
-export { create_Order, get_all_orders_by_user_id, getOrderItemDetails  , get_all_orders ,getAllItemsByOrderId ,changeOrderStatus };
+    const orderItem = await OrderItem.findOne({ _id: orderItemId });
+    if (!orderItem) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order item not found" });
+    }
+
+    if (orderItem.status !== "Pending") {
+      const cancelRequest = new OrderCancelRequest({
+        orderId,
+        orderItem: orderItemId,
+        reason,
+        explanation,
+        userId,
+      });
+      await cancelRequest.save();
+      return res
+        .status(200)
+        .json({ success: true, message: "Request sent successfully" });
+    }
+
+    const product = await Product.findById(orderItem.productId);
+    product.variants = product.variants.map((variant) => {
+      if (variant.id === orderItem.variant.id) {
+        return { ...variant, quantity: variant.quantity + orderItem.quantity };
+      }
+      return variant;
+    });
+    await product.save();
+    orderItem.status = "Cancelled";
+    await orderItem.save();
+
+    res
+      .status(200)
+      .json({ success: true, message: "Your order has been cancelled" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const getCancleRequestByItemId = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cancelRequest = await OrderCancelRequest.findOne({
+      orderItem: id,
+    });
+    res.status(200).json({ success: true, cancelRequest });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const getAllCancelRequests = async (req, res) => {
+  try {
+    const cancelRequests = await OrderCancelRequest.find({ status: "pending" })
+      .populate("orderItem")
+      .populate("orderId");
+    res.status(200).json({ success: true, cancelRequests });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const cancelRequestUpdate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, response } = req.body;
+    const cancelRequest = await OrderCancelRequest.findOne({ _id: id });
+    cancelRequest.status = status;
+    cancelRequest.response = response;
+    await cancelRequest.save();
+    if (status === "approved") {
+      const orderItem = await OrderItem.findOne({
+        _id: cancelRequest.orderItem,
+      });
+      orderItem.status = "Cancelled";
+      await orderItem.save();
+
+      const product = await Product.findById(orderItem.productId);
+      product.variants = product.variants.map((variant) => {
+        if (variant.id === orderItem.variant.id) {
+          return {
+            ...variant,
+            quantity: variant.quantity + orderItem.quantity,
+          };
+        }
+        return variant;
+      });
+      await product.save();
+    }
+
+    res
+      .status(200)
+      .json({ success: true, message: "Request updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export {
+  create_Order,
+  get_all_orders_by_user_id,
+  getOrderItemDetails,
+  get_all_orders,
+  getAllItemsByOrderId,
+  changeOrderStatus,
+  createOrderCancelRequest,
+  getCancleRequestByItemId,
+  getAllCancelRequests,
+  cancelRequestUpdate,
+};

@@ -7,7 +7,7 @@ import tokenGenerate from "../utils/jwtTokenGenerate.js";
 const saltRound = 10;
 
 // register a new user
-const auth_SignUp = async (req, res) => {
+const authSignUp = async (req, res) => {
   try {
     //Checking the the user is already exist
     const existingUser = await User.findOne({ email: req.body.email });
@@ -43,7 +43,7 @@ const auth_SignUp = async (req, res) => {
 
 /// Login or signUp with google
 
-const auth_With_Google = async (req, res) => {
+const authWithGoogle = async (req, res) => {
   const { accessToken } = req.body;
 
   try {
@@ -129,7 +129,7 @@ const auth_With_Google = async (req, res) => {
 
 // verify the email using otp
 
-const verify_Otp = async (req, res) => {
+const verifyOtp = async (req, res) => {
   const { id, otp } = req.body;
   try {
     const findOtp = await Otp.findOne({ userId: id });
@@ -159,7 +159,6 @@ const verify_Otp = async (req, res) => {
 //resend the otp
 
 const resend_Otp = async (req, res) => {
-  
   try {
     const { id } = req.body;
     const user = await User.findById(id);
@@ -174,7 +173,7 @@ const resend_Otp = async (req, res) => {
 
 // login request
 
-const auth_login = async (req, res) => {
+const authLogin = async (req, res) => {
   try {
     //check user exist
     const user = await User.findOne({ email: req.body.email });
@@ -192,13 +191,13 @@ const auth_login = async (req, res) => {
         message: "Registered with Google. Please log in using Google.",
       });
     }
-      //  blocked user
-      if (user.is_Blocked) {
-        return res.status(403).json({
-          success: false,
-          message: "Account blocked please contact support",
-        });
-      }
+    //  blocked user
+    if (user.is_Blocked) {
+      return res.status(403).json({
+        success: false,
+        message: "Account blocked please contact support",
+      });
+    }
     // not verified user
     if (!user.is_Verified) {
       await sendOtpEmail(user.email, user.id, user.username);
@@ -208,7 +207,7 @@ const auth_login = async (req, res) => {
         id: user.id,
       });
     }
-  
+
     //matching user password
     const match = await compare(req.body.password, user.password);
     if (!match) {
@@ -241,7 +240,6 @@ const auth_login = async (req, res) => {
   } catch (error) {
     console.log(error);
   }
-  
 };
 
-export { auth_SignUp, auth_With_Google, verify_Otp, resend_Otp, auth_login };
+export { authSignUp, authWithGoogle, verifyOtp, resend_Otp, authLogin };

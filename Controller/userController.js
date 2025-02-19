@@ -2,7 +2,7 @@ import { activeUsers, io } from "../index.js";
 import User from "../Model/userModel.js";
 import dateFormat from "../utils/dateFormat.js";
 import sendPasswordRestLink from "../utils/sendPasswordRestLink.js";
-import { hash } from "bcrypt"; 
+import { hash } from "bcrypt";
 
 // logout user
 const userLogout = async (req, res) => {
@@ -39,7 +39,7 @@ const userProfile = async (req, res) => {
 };
 
 // fetch all users
-const fetch_all_users = async (req, res) => {
+const getAllUsers = async (req, res) => {
   try {
     let users = await User.find().select("-password");
     users = users.filter((user) => user.role !== "admin");
@@ -53,7 +53,7 @@ const fetch_all_users = async (req, res) => {
 
 // block user
 
-const block_user = async (req, res) => {
+const softDeleteUser = async (req, res) => {
   try {
     const { id } = req.params;
     const user = await User.findById(id);
@@ -88,7 +88,7 @@ const block_user = async (req, res) => {
 
 // delete user
 
-const delete_user = async (req, res) => {
+const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
     const user = await User.findById(id);
@@ -109,7 +109,7 @@ const delete_user = async (req, res) => {
 
 // update user profile
 
-const update_profile = async (req, res) => {
+const updateUserProfile = async (req, res) => {
   try {
     const { id } = req.user;
 
@@ -134,7 +134,7 @@ const update_profile = async (req, res) => {
 
 // add new user address
 
-const add_new_address = async (req, res) => {
+const addNewAddress = async (req, res) => {
   try {
     const { id } = req.user;
 
@@ -157,7 +157,7 @@ const add_new_address = async (req, res) => {
 
 // get all user address
 
-const get_all_address = async (req, res) => {
+const getAllAddress = async (req, res) => {
   try {
     const { id } = req.user;
 
@@ -177,7 +177,7 @@ const get_all_address = async (req, res) => {
 
 // delte user address
 
-const delete_address = async (req, res) => {
+const deleteAddress = async (req, res) => {
   try {
     const { id } = req.user;
 
@@ -204,7 +204,7 @@ const delete_address = async (req, res) => {
 
 // update user address
 
-const update_address = async (req, res) => {
+const updateAddress = async (req, res) => {
   try {
     const { id } = req.user;
 
@@ -231,7 +231,7 @@ const update_address = async (req, res) => {
 
 // get address by id
 
-const get_address_by_id = async (req, res) => {
+const getAddressById = async (req, res) => {
   try {
     const { id } = req.user;
 
@@ -251,13 +251,11 @@ const get_address_by_id = async (req, res) => {
         .json({ success: false, message: "Address not found" });
     }
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Address fetched successfully",
-        address,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Address fetched successfully",
+      address,
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -274,20 +272,17 @@ const forgetPassword = async (req, res) => {
         .json({ success: false, message: "This email is not registered" });
     }
 
-    await sendPasswordRestLink(user._id,user.email,user.username);
+    await sendPasswordRestLink(user._id, user.email, user.username);
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Password reset email sent successfully",
-      });
+    res.status(200).json({
+      success: true,
+      message: "Password reset email sent successfully",
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
 
 // reset password
 const resetPassword = async (req, res) => {
@@ -317,15 +312,15 @@ const resetPassword = async (req, res) => {
 export {
   userLogout,
   userProfile,
-  fetch_all_users,
-  block_user,
-  delete_user,
-  update_profile,
-  add_new_address,
-  get_all_address,
-  delete_address,
-  update_address,
-  get_address_by_id,
+  getAllUsers,
+  softDeleteUser,
+  deleteUser,
+  updateUserProfile,
+  addNewAddress,
+  getAllAddress,
+  deleteAddress,
+  updateAddress,
+  getAddressById,
   forgetPassword,
   resetPassword,
 };

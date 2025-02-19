@@ -3,9 +3,10 @@ import OrderItem from "../Model/orderItemsModel.js";
 import Product from "../Model/productModel.js";
 import dateFormat from "../utils/dateFormat.js";
 import OrderCancelRequest from "../Model/orderCancelRequest.js";
+import Variant from "../Model/variant.js";
 
 // create order
-const create_Order = async (req, res) => {
+const createOrder = async (req, res) => {
   try {
     const { id } = req.user;
     const { shippingAddress, items, paymentMethod } = req.body;
@@ -46,14 +47,9 @@ const create_Order = async (req, res) => {
         });
 
         const savedOrderItem = await orderItem.save();
-        const product = await Product.findById(item.productId._id);
-        product.variants = product.variants.map((variant) => {
-          if (variant.id === item.variant.id) {
-            return { ...variant, quantity: variant.quantity - item.quantity }; // Update variant quantity correctly
-          }
-          return variant;
-        });
-        await product.save();
+        const variant = await Variant.findById(item.variant._id);
+        variant.quantity -= item.quantity;
+        await variant.save();
         return savedOrderItem._id;
       })
     );
@@ -73,16 +69,18 @@ const create_Order = async (req, res) => {
 };
 
 // get all orders by user id
-const get_all_orders_by_user_id = async (req, res) => {
+const getAllOrderOfUser = async (req, res) => {
   try {
     const { id } = req.user;
-    const orders = await Order.find({ userId: id }).populate({
-      path: "items",
-      populate: {
-        path: "productId",
-        model: "Product",
-      },
-    });
+    const orders = await Order.find({ userId: id })
+      .populate({
+        path: "items",
+        populate: {
+          path: "productId",
+          model: "Product",
+        },
+      })
+      .sort({ orderDate: -1 });
 
     res.status(200).json({ success: true, orders });
   } catch (error) {
@@ -110,7 +108,7 @@ const getOrderItemDetails = async (req, res) => {
 
 // get all orders
 
-const get_all_orders = async (req, res) => {
+const getAllOrders = async (req, res) => {
   try {
     let orders = await Order.find();
     orders = orders.map((order) => {
@@ -147,14 +145,9 @@ const changeOrderStatus = async (req, res) => {
     const { status } = req.body;
     const order = await OrderItem.findOne({ _id: id });
     if (status === "Cancelled") {
-      const product = await Product.findById(order.productId);
-      product.variants = product.variants.map((variant) => {
-        if (variant.id === order.variant.id) {
-          return { ...variant, quantity: variant.quantity + order.quantity }; // Update variant quantity correctly
-        }
-        return variant;
-      });
-      await product.save();
+      const variant = await Variant.findById(order.variant._id);
+      variant.quantity += order.quantity;
+      await variant.save();
     }
 
     order.status = status;
@@ -194,14 +187,9 @@ const createOrderCancelRequest = async (req, res) => {
         .json({ success: true, message: "Request sent successfully" });
     }
 
-    const product = await Product.findById(orderItem.productId);
-    product.variants = product.variants.map((variant) => {
-      if (variant.id === orderItem.variant.id) {
-        return { ...variant, quantity: variant.quantity + orderItem.quantity };
-      }
-      return variant;
-    });
-    await product.save();
+    const variant = await Variant.findById(orderItem.variant._id);
+    variant.quantity += orderItem.quantity;
+    await variant.save();
     orderItem.status = "Cancelled";
     await orderItem.save();
 
@@ -277,10 +265,10 @@ const cancelRequestUpdate = async (req, res) => {
 };
 
 export {
-  create_Order,
-  get_all_orders_by_user_id,
+  createOrder,
+  getAllOrderOfUser,
   getOrderItemDetails,
-  get_all_orders,
+  getAllOrders,
   getAllItemsByOrderId,
   changeOrderStatus,
   createOrderCancelRequest,

@@ -1,5 +1,7 @@
 import Product from "../Model/productModel.js";
 import fs from "fs";
+import Variant from "../Model/variant.js";
+import mongoose from "mongoose";
 // add new product
 
 const addProduct = async (req, res) => {
@@ -7,6 +9,22 @@ const addProduct = async (req, res) => {
     const { name, brand, category, description, ingredients } = req.body;
     const variants = JSON.parse(req.body.variants);
 
+    ////
+
+    const newVariants = await Promise.all(
+      variants.map(async (variant) => {
+        const saveVariant = new Variant({
+          weight: variant.weight,
+          price: variant.price,
+          quantity: variant.quantity,
+        });
+        const savedVariant = await saveVariant.save();
+
+        return savedVariant._id;
+      })
+    );
+    console.log(newVariants);
+    ////
     const images = req.files.map((file) => `/img/${file.filename}`);
 
     const newProduct = new Product({
@@ -15,7 +33,7 @@ const addProduct = async (req, res) => {
       category,
       description,
       ingredients,
-      variants,
+      variants: newVariants,
       images,
     });
 
@@ -39,7 +57,9 @@ const addProduct = async (req, res) => {
 
 const getProducts = async (req, res) => {
   try {
-    const products = await Product.find();
+    const products = await Product.find()
+      .populate("category")
+      .populate("variants");
 
     res.status(200).json({
       success: true,
@@ -54,7 +74,7 @@ const getProducts = async (req, res) => {
 
 // soft delete
 
-const product_Soft_Delete = async (req, res) => {
+const softDeleteProduct = async (req, res) => {
   try {
     const { id } = req.body;
 
@@ -80,7 +100,7 @@ const product_Soft_Delete = async (req, res) => {
 
 // product delete
 
-const delete_Product = async (req, res) => {
+const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -94,6 +114,13 @@ const delete_Product = async (req, res) => {
     product.images.forEach((image) => {
       fs.unlinkSync(`./img/products/${image.split("/").pop()}`);
     });
+    // delete variants
+    await Promise.all(
+      product.variants.map(async (variant) => {
+        const variantDeleted = await Variant.findByIdAndDelete(variant._id);
+        return variantDeleted;
+      })
+    );
     // delete product
     await Product.findByIdAndDelete(id);
     res
@@ -105,12 +132,14 @@ const delete_Product = async (req, res) => {
   }
 };
 
-const get_Product_Details = async (req, res) => {
+const getProductDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const product = await Product.findById(id);
-    const recomendation = await Product.find({ category: product.category });
+    const product = await Product.findById(id).populate("variants");
+    product.popularity += 1;
+    await product.save();
+    const recomendation = await Product.find({ category: product.category }).populate("variants");
 
     return res.status(200).json({
       success: true,
@@ -157,7 +186,7 @@ const recommend_Products = async (req, res) => {
 };
 
 // edit product
-const edit_product = async (req, res) => {
+const editProduct = async (req, res) => {
   try {
     const { name, brand, category, description, ingredients } = req.body;
     const images = req.files.map((file) => `/img/${file.filename}`);
@@ -177,12 +206,39 @@ const edit_product = async (req, res) => {
 
     //delete old varients
 
+    const newVariants = await Promise.all(
+      variants.map(async (variant) => {
+        console.log(variant._id);
+        if (mongoose.Types.ObjectId.isValid(variant._id)) {
+          const exist = await Variant.findById(variant._id);
+
+          if (exist) {
+            exist.weight = variant.weight;
+            exist.price = variant.price;
+            exist.quantity = variant.quantity;
+            const savedVariant = await exist.save();
+            return savedVariant._id;
+          }
+        }
+
+        const saveVariant = new Variant({
+          weight: variant.weight,
+          price: variant.price,
+          quantity: variant.quantity,
+        });
+
+        const savedVariant = await saveVariant.save();
+
+        return savedVariant._id;
+      })
+    );
+
     product.name = name;
     product.brand = brand;
     product.category = category;
     product.description = description;
     product.ingredients = ingredients;
-    product.variants = variants;
+    product.variants = newVariants;
     product.images = images;
     await product.save();
     res.status(200).json({ success: true, message: "Updated successfully" });
@@ -196,10 +252,9 @@ const edit_product = async (req, res) => {
 
 const searchProducts = async (req, res) => {
   try {
-    const { q, sortBy, rating, category } = req.query;
+    const { searchQuery, sortBy, rating, category } = req.query;
 
-    const query = decodeURIComponent(q);
-
+    const query = decodeURIComponent(searchQuery);
     const filter = {};
     filter.is_deleted = false;
 
@@ -208,7 +263,7 @@ const searchProducts = async (req, res) => {
     }
 
     if (category) {
-      filter.category = category;
+      filter.category = new mongoose.Types.ObjectId(`${category}`);
     }
 
     // if(rating){
@@ -218,7 +273,7 @@ const searchProducts = async (req, res) => {
     // }
 
     const sortOptions = {};
-
+    
     if (sortBy) {
       if (sortBy === "aA-zZ") {
         sortOptions.name = 1;
@@ -230,35 +285,39 @@ const searchProducts = async (req, res) => {
         sortOptions.firstVariantPrice = -1;
       } else if (sortBy === "lowToHigh") {
         sortOptions.firstVariantPrice = 1;
+      }else if(sortBy === 'popularity'){
+        sortOptions.popularity = -1;
       }
+    }else{
+      sortOptions.createdAt = -1;
     }
 
-    if (sortBy === "highToLow" || sortBy === "lowToHigh") {
+    
       const products = await Product.aggregate([
         {
-          $match: filter,
+          $lookup:{
+            from:"variants",
+            localField:"variants",
+            foreignField:"_id",
+            as:"variants"
+          }
         },
         {
-          $addFields: {
-            firstVariantPrice: {
-              $arrayElemAt: ["$variants.price", 0],
-            },
-          },
+          $set:{
+            firstVariantPrice:{$arrayElemAt:["$variants.price",0]}
+          }
+        }
+        ,
+        {
+          $match:filter
         },
         {
-          $sort: sortOptions,
-        },
+          $sort:sortOptions
+        }
       ]);
+      
 
-      return res.status(200).json({
-        success: true,
-        message: "successfully fetched products",
-        products,
-      });
-    }
-
-    const products = await Product.find(filter).sort(sortOptions);
-
+    
     return res.status(200).json({
       success: true,
       message: "successfully fetched products",
@@ -274,9 +333,9 @@ const searchProducts = async (req, res) => {
 export {
   addProduct,
   getProducts,
-  product_Soft_Delete,
-  delete_Product,
-  get_Product_Details,
-  edit_product,
+  softDeleteProduct,
+  deleteProduct,
+  getProductDetails,
+  editProduct,
   searchProducts,
 };

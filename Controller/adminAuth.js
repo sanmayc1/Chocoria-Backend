@@ -2,11 +2,10 @@ import { compare } from "bcrypt";
 import tokenGenerate from "../utils/jwtTokenGenerate.js";
 import User from "../Model/userModel.js";
 
-
-const auth_Admin_login = async(req, res) => {
+const authAdminLogin = async (req, res) => {
   try {
     //check user exist
-    const user = await User.findOne({ email: req.body.email });        
+    const user = await User.findOne({ email: req.body.email });
 
     if (!user) {
       return res.status(401).json({
@@ -23,7 +22,7 @@ const auth_Admin_login = async(req, res) => {
     }
     //check password
     const isMatch = await compare(req.body.password, user.password);
-   
+
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -35,8 +34,7 @@ const auth_Admin_login = async(req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true, 
-
+      secure: true,
     });
     res.status(200).json({
       success: true,
@@ -44,10 +42,10 @@ const auth_Admin_login = async(req, res) => {
       auth: true,
       role: user.role,
     });
-    } catch (error) {
+  } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
-    }
+  }
 };
 
-export { auth_Admin_login };
+export { authAdminLogin };

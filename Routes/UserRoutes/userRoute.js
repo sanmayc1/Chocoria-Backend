@@ -1,52 +1,46 @@
-import {Router} from 'express'
-import { auth_login, auth_SignUp, auth_With_Google, resend_Otp, verify_Otp } from '../../Controller/auth.js'
-import userDataValidation from '../../Middleware/validation.js'
-import {  forgetPassword, resetPassword, update_profile, userLogout, userProfile } from '../../Controller/userController.js'
-import jwtVerify from '../../Middleware/jwtVerify.js'
-import cart_Route from './cartRoute.js'
-import address_Route from './addressRoute.js'
-import product_Route from './productsRoutes.js'
-import order_Route from './OrderRoutes.js'
-import { getCategories } from '../../Controller/categoryController.js'
-const user_Route = Router()
+import { Router } from "express";
+import {
+  authLogin,
+  authSignUp,
+  authWithGoogle,
+  resend_Otp,
+  verifyOtp,
+} from "../../Controller/auth.js";
+import userDataValidation from "../../Middleware/validation.js";
+import {
+  forgetPassword,
+  resetPassword,
+  updateUserProfile,
+  userLogout,
+  userProfile,
+} from "../../Controller/userController.js";
+import jwtVerify from "../../Middleware/jwtVerify.js";
+import cartRoute from "./cartRoute.js";
+import addressRoute from "./addressRoute.js";
+import productRoute from "./productsRoutes.js";
+import orderRoute from "./OrderRoutes.js";
+import { getCategories } from "../../Controller/categoryController.js";
+const userRoute = Router();
+
+userRoute.post("/auth/signup", userDataValidation, authSignUp);
+userRoute.post("/auth/google", authWithGoogle);
+userRoute.patch("/otp", verifyOtp);
+userRoute.post("/resend-otp", resend_Otp);
+userRoute.post("/auth/login", authLogin);
+userRoute.post("/logout", userLogout);
+
+userRoute.post("/forget-password", forgetPassword);
+userRoute.patch("/reset-password", resetPassword);
+
+userRoute.get("/profile", jwtVerify, userProfile);
+userRoute.patch("/update-profile", jwtVerify, updateUserProfile);
+
+userRoute.get("/categories", getCategories);
 
 
+userRoute.use("/products", productRoute);
+userRoute.use("/address", jwtVerify, addressRoute);
+userRoute.use("/cart", jwtVerify, cartRoute);
+userRoute.use("/order", jwtVerify, orderRoute);
 
-// user auth routes
-user_Route.post("/auth/signup",userDataValidation,auth_SignUp)
-user_Route.post("/auth/google",auth_With_Google)
-user_Route.patch("/otp",verify_Otp)
-user_Route.post("/resend-otp",resend_Otp)
-user_Route.post("/auth/login",auth_login)
-user_Route.post("/logout",userLogout)
-
-user_Route.post("/forget-password",forgetPassword)
-user_Route.patch("/reset-password",resetPassword)
-
-// user profile routes
-
-user_Route.get("/profile",jwtVerify,userProfile) 
-user_Route.patch("/update-profile",jwtVerify,update_profile)
-
-//  product routes
-user_Route.get("/categories",getCategories)
-user_Route.use("/products",product_Route)
-
-// Address routes
-
-user_Route.use("/address",jwtVerify,address_Route)
-
-//  Cart routes 
-
-user_Route.use("/cart",jwtVerify,cart_Route)
-
-// order routes
-
-user_Route.use("/order",jwtVerify,order_Route)
-
-
-
-
-
-
-export default user_Route 
+export default userRoute;

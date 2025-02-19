@@ -1,18 +1,18 @@
 import express from "express"
-import { create_Order, createOrderCancelRequest, get_all_orders_by_user_id,getCancleRequestByItemId,getOrderItemDetails  } from "../../Controller/orderController.js"
-const order_Route = express.Router()
+import {createOrder, createOrderCancelRequest,getAllOrderOfUser,getCancleRequestByItemId,getOrderItemDetails  } from "../../Controller/orderController.js"
+const orderRoute = express.Router()
 
-order_Route.post("/",create_Order)
+orderRoute.post("/",createOrder)
 
-order_Route.get("/",get_all_orders_by_user_id)
+orderRoute.get("/",getAllOrderOfUser)
 
-order_Route.get("/:id/cancel",getCancleRequestByItemId)
+orderRoute.get("/:id/cancel",getCancleRequestByItemId)
 
-order_Route.post("/:id/cancel",createOrderCancelRequest)
+orderRoute.post("/:id/cancel",createOrderCancelRequest)
 
-order_Route.get("/:id",getOrderItemDetails)
-
-
+orderRoute.get("/:id",getOrderItemDetails)
 
 
-export default order_Route
+
+
+export default orderRoute

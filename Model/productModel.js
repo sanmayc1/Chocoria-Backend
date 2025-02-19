@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { type } from "os";
+import { ref } from "yup";
 
 
 
@@ -14,7 +15,8 @@ const productSchema = new mongoose.Schema({
         required:true
     },
     category:{
-        type:String,
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Category",
         required:true
     },
     images:{
@@ -30,12 +32,17 @@ const productSchema = new mongoose.Schema({
         required:true
     },
     variants:{
-        type:[Object],
+        type:[mongoose.Schema.Types.ObjectId],
+        ref:"Variant",
         required:true
     },
     offer:{
         type:[String],
         required:true
+    },
+    popularity:{
+        type:Number,
+        default:0
     },
     is_deleted:{
         type:Boolean,

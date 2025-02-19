@@ -1,15 +1,21 @@
 import express from "express";
-import { add_new_address, delete_address, get_address_by_id, get_all_address, update_address } from "../../Controller/userController.js";
-const address_Route = express.Router()
+import {
+  addNewAddress,
+  deleteAddress,
+  getAddressById,
+  getAllAddress,
+  updateAddress,
+} from "../../Controller/userController.js";
+const addressRoute = express.Router();
 
-address_Route.post("/",add_new_address)
+addressRoute.post("/", addNewAddress);
 
-address_Route.get("/",get_all_address)
+addressRoute.get("/", getAllAddress);
 
-address_Route.get("/:id",get_address_by_id)
+addressRoute.get("/:id", getAddressById);
 
-address_Route.patch("/:id",update_address)
+addressRoute.patch("/:id", updateAddress);
 
-address_Route.delete("/:id",delete_address)
+addressRoute.delete("/:id", deleteAddress);
 
-export default address_Route
+export default addressRoute;

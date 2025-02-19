@@ -2,7 +2,7 @@ import Category from "../Model/categoryModel.js";
 
 // ADD TO category
 
-const add_to_category = async (req, res) => {
+const addCategory = async (req, res) => {
   try {
     const { name } = req.body;
     // check if category exists
@@ -50,7 +50,7 @@ const getCategories = async (req, res) => {
   }
 };
 // edit category
-const edit_category = async (req, res) => {
+const editCategory = async (req, res) => {
   try {
     const { id, name } = req.body;
     const category = await Category.findById(id);
@@ -64,7 +64,7 @@ const edit_category = async (req, res) => {
 };
 
 // delete category
-const delete_category = async (req, res) => {
+const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -86,7 +86,7 @@ const delete_category = async (req, res) => {
 
 // soft delete
 
-const soft_Delete_category = async (req, res) => {
+const softDeleteCategory = async (req, res) => {
   try {
     const { id } = req.body;
     const category = await Category.findById(id);
@@ -110,9 +110,9 @@ const soft_Delete_category = async (req, res) => {
 };
 
 export {
-  add_to_category,
+  addCategory,
   getCategories,
-  edit_category,
-  delete_category,
-  soft_Delete_category,
+  editCategory,
+  deleteCategory,
+  softDeleteCategory,
 };

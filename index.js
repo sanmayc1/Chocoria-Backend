@@ -1,8 +1,8 @@
 import express from "express";
 import { PORT } from "./utils/envValues.js";
 import connectMongose from "./config/ConnectDb/MongoDbConnect.js";
-import user_Route from "./Routes/UserRoutes/userRoute.js";
-import admin_Route from "./Routes/AdminRoutes/adminRoute.js";
+import userRoute from "./Routes/UserRoutes/userRoute.js";
+import adminRoute from "./Routes/AdminRoutes/adminRoute.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
@@ -43,6 +43,6 @@ app.use("/img", express.static(path.join(process.cwd(), "img/products")));
 connectMongose();
 
 // specifying routes
-app.use("/user", user_Route);
-app.use("/admin", admin_Route);
+app.use("/user", userRoute);
+app.use("/admin", adminRoute);
 server.listen(PORT, () => console.log(`Server is Running in ${PORT}`));

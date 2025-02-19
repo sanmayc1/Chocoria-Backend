@@ -1,80 +1,80 @@
 import { Router } from "express";
-import { auth_Admin_login } from "../../Controller/adminAuth.js";
+import { authAdminLogin } from "../../Controller/adminAuth.js";
 import {
-  block_user,
-  delete_user,
-  fetch_all_users,
+  softDeleteUser,
+  deleteUser,
+  getAllUsers,
 } from "../../Controller/userController.js";
 import verifyAdmin from "../../Middleware/verifyAdmin.js";
 import jwtVerify from "../../Middleware/jwtVerify.js";
 import {
-  add_to_category,
-  delete_category,
-  edit_category,
+  addCategory,
+  deleteCategory,
+  editCategory,
   getCategories,
-  soft_Delete_category,
+  softDeleteCategory,
 } from "../../Controller/categoryController.js";
 import { products } from "../../utils/multerStorage.js";
 import {
   addProduct,
-  delete_Product,
-  edit_product,
-  get_Product_Details,
+  deleteProduct,
+  editProduct,
+  getProductDetails,
   getProducts,
-  product_Soft_Delete,
+  softDeleteProduct,
 } from "../../Controller/productController.js";
-import admin_Order_Route from "./orderRoutes.js";
+import adminOrderRoute from "./orderRoutes.js";
 
-const admin_Route = Router();
+const adminRoute = Router();
 
 // auth routes
-admin_Route.post("/auth/login", auth_Admin_login);
+adminRoute.post("/auth/login",authAdminLogin);
 
 // fecth all users
 
-admin_Route.get("/users", jwtVerify, verifyAdmin, fetch_all_users);
+adminRoute.get("/users", jwtVerify, verifyAdmin,getAllUsers);
 
 // block user
 
-admin_Route.patch("/block-user/:id", jwtVerify, verifyAdmin, block_user);
+adminRoute.patch("/block-user/:id", jwtVerify, verifyAdmin,softDeleteUser);
 
 // delete user
 
-admin_Route.delete("/delete-user/:id", jwtVerify, verifyAdmin, delete_user);
+adminRoute.delete("/delete-user/:id", jwtVerify, verifyAdmin,deleteUser);
 
 // add category
 
-admin_Route.post("/add-category", jwtVerify, verifyAdmin, add_to_category);
+adminRoute.post("/add-category", jwtVerify, verifyAdmin,addCategory);
 
 // get all categories
 
-admin_Route.get("/category", jwtVerify, verifyAdmin,getCategories);
+adminRoute.get("/category", jwtVerify, verifyAdmin,getCategories);
 
 // edit category
 
-admin_Route.patch("/edit-category", jwtVerify, verifyAdmin, edit_category);
+adminRoute.patch("/edit-category", jwtVerify, verifyAdmin,editCategory);
 
 // delete category
 
-admin_Route.delete(
+adminRoute.delete(
   "/delete-category/:id",
   jwtVerify,
   verifyAdmin,
-  delete_category
+  deleteCategory
 );
 
 // soft delete category
 
-admin_Route.patch(
+adminRoute.patch(
   "/category/soft-delete",
   jwtVerify,
   verifyAdmin,
-  soft_Delete_category
+  softDeleteCategory
 );
 
 // add products
 
-admin_Route.post(
+adminRoute.post(
   "/products",
   jwtVerify,
   verifyAdmin,
@@ -84,37 +84,37 @@ admin_Route.post(
 
 // fetch all products
 
-admin_Route.get("/products", jwtVerify, verifyAdmin, getProducts);
+adminRoute.get("/products", jwtVerify, verifyAdmin, getProducts);
 
 // soft delete product
 
-admin_Route.patch(
+adminRoute.patch(
   "/products/soft-delete",
   jwtVerify,
   verifyAdmin,
-  product_Soft_Delete
+  softDeleteProduct
 );
 
 // get product details
 
-admin_Route.get("/products/:id", jwtVerify, verifyAdmin, get_Product_Details);
+adminRoute.get("/products/:id", jwtVerify, verifyAdmin,getProductDetails);
 
 // edit product
 
-admin_Route.patch(
+adminRoute.patch(
   "/products/:id",
   jwtVerify,
   verifyAdmin,
   products.array("images[]"),
-  edit_product
+  editProduct
 );
 
 // delete
 
-admin_Route.delete("/products/:id", jwtVerify, verifyAdmin, delete_Product);
+adminRoute.delete("/products/:id", jwtVerify, verifyAdmin,deleteProduct);
 
 // order
 
-admin_Route.use("/orders", jwtVerify, verifyAdmin, admin_Order_Route);
+adminRoute.use("/orders", jwtVerify, verifyAdmin, adminOrderRoute);
 
-export default admin_Route;
+export default adminRoute;

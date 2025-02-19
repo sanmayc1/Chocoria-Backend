@@ -1,10 +1,21 @@
 import Cart from "../Model/cartModel.js";
+import Product from "../Model/productModel.js";
 import User from "../Model/userModel.js";
+import Variant from "../Model/variant.js";
 
 const addtocart = async (req, res) => {
   try {
     const products = req.body;
     const { id } = req.user;
+
+    if (products.quantity > 8) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "A person can only buy a maximum of 8 items at once",
+        });
+    }
 
     // check this user have a cart if no create one
 
@@ -12,7 +23,13 @@ const addtocart = async (req, res) => {
     if (!existingCart) {
       const newCart = new Cart({
         userId: id,
-        products,
+        products: [
+          {
+            productId: products.productId,
+            variant: products.variant._id,
+            quantity: products.quantity,
+          },
+        ],
       });
       await newCart.save();
       return res
@@ -25,7 +42,7 @@ const addtocart = async (req, res) => {
     const existingProduct = existingCart.products.find((product) => {
       if (
         product.productId.toString() === products.productId &&
-        product.variant.id === products.variant.id
+        product.variant.toString() === products.variant._id
       ) {
         return product;
       }
@@ -41,12 +58,13 @@ const addtocart = async (req, res) => {
       existingCart.products = existingCart.products.map((product) => {
         if (
           product.productId.toString() === products.productId &&
-          product.variant.id === products.variant.id
+          product.variant.toString() === products.variant._id
         ) {
+          console.log(product);
           return {
             productId: product.productId,
             quantity: products.quantity,
-            variant: product.variant,
+            variant: product.variant._id,
           };
         }
         return product;
@@ -59,6 +77,13 @@ const addtocart = async (req, res) => {
     }
     // if the product not exist add new one
 
+    const quantity = Variant.findById(products.variant._id).quantity;
+
+    if (quantity == 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product out of stock" });
+    }
     existingCart.products.push(products);
     await existingCart.save();
     return res
@@ -74,19 +99,38 @@ const addtocart = async (req, res) => {
 
 // get all products from cart
 
-const get_all_products_from_cart = async (req, res) => {
+const getAllProductsFromCart = async (req, res) => {
   try {
     const { id } = req.user;
-    const cart = await Cart.findOne({ userId: id }).populate(
-      "products.productId"
-    );
+    const cart = await Cart.findOne({ userId: id })
+      .populate("products.productId")
+      .populate("products.variant");
+
+    cart.products = cart.products
+      .filter(
+        (product) =>
+          product.productId &&
+          !product.productId.is_deleted &&
+          product.variant &&
+          product.variant.quantity > 0
+      )
+      .map((product) => ({
+        productId: product.productId._id,
+        variant: product.variant._id,
+        quantity: Math.min(product.quantity, product.variant.quantity),
+      }));
+
+    await cart.save();
+    const updatedCart = await Cart.findById(cart._id)
+      .populate("products.productId")
+      .populate("products.variant");
 
     if (!cart) {
       return res
         .status(404)
         .json({ success: false, message: "Cart not found" });
     }
-    return res.status(200).json({ success: true, cart });
+    return res.status(200).json({ success: true, cart: updatedCart });
   } catch (error) {
     console.log(error);
     return res
@@ -97,12 +141,23 @@ const get_all_products_from_cart = async (req, res) => {
 
 // update the quantity of a product in the cart
 
-const quantity_update = async (req, res) => {
+const quantityUpdate = async (req, res) => {
   try {
     const { id } = req.user;
     const { productId, quantity, variantId } = req.body;
 
-    const cart = await Cart.findOne({ userId: id });
+    if (quantity > 8) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "A person can only buy a maximum of 8 items at once",
+        });
+    }
+
+    const cart = await Cart.findOne({ userId: id }).populate(
+      "products.variant"
+    );
     if (!cart) {
       return res
         .status(404)
@@ -111,7 +166,7 @@ const quantity_update = async (req, res) => {
     const product = cart.products.find(
       (product) =>
         product.productId.toString() === productId &&
-        product.variant.id === variantId
+        product.variant._id.toString() === variantId
     );
 
     if (!product) {
@@ -123,7 +178,10 @@ const quantity_update = async (req, res) => {
     if (product.variant.quantity < quantity) {
       return res
         .status(400)
-        .json({ success: false, message: "Sorry! We don't have any more units for this item." });
+        .json({
+          success: false,
+          message: "Sorry! We don't have any more units for this item.",
+        });
     }
 
     product.quantity = quantity;
@@ -141,11 +199,11 @@ const quantity_update = async (req, res) => {
 
 // delete a product from cart
 
-const delete_from_cart = async (req, res) => {
+const deleteFromCart = async (req, res) => {
   try {
     const { id } = req.user;
     const { productId, variantId } = req.query;
-    
+
     const cart = await Cart.findOne({ userId: id });
     if (!cart) {
       return res
@@ -155,7 +213,7 @@ const delete_from_cart = async (req, res) => {
     const productExists = cart.products.find(
       (product) =>
         product.productId.toString() === productId &&
-        product.variant.id === variantId
+        product.variant._id.toString() === variantId
     );
 
     if (!productExists) {
@@ -165,7 +223,8 @@ const delete_from_cart = async (req, res) => {
     }
 
     cart.products = cart.products.filter(
-      (product) => product._id.toString() !== productExists._id.toString() );
+      (product) => product._id.toString() !== productExists._id.toString()
+    );
     await cart.save();
     return res
       .status(200)
@@ -178,4 +237,4 @@ const delete_from_cart = async (req, res) => {
   }
 };
 
-export { addtocart, get_all_products_from_cart, quantity_update, delete_from_cart };
+export { addtocart, getAllProductsFromCart, quantityUpdate, deleteFromCart };

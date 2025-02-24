@@ -9,11 +9,26 @@ const addProduct = async (req, res) => {
     const { name, brand, category, description, ingredients } = req.body;
     const variants = JSON.parse(req.body.variants);
 
-    ////
+
+    const images = req.files.map((file) => `/img/${file.filename}`);
+
+    const newProduct = new Product({
+      name,
+      brand,
+      category,
+      description,
+      ingredients,
+      variants: [],
+      images,
+    });
+
+    // Save the product in the database
+    const savedProduct = await newProduct.save();
 
     const newVariants = await Promise.all(
       variants.map(async (variant) => {
         const saveVariant = new Variant({
+          productId:savedProduct._id,
           weight: variant.weight,
           price: variant.price,
           quantity: variant.quantity,
@@ -23,22 +38,9 @@ const addProduct = async (req, res) => {
         return savedVariant._id;
       })
     );
-    console.log(newVariants);
-    ////
-    const images = req.files.map((file) => `/img/${file.filename}`);
 
-    const newProduct = new Product({
-      name,
-      brand,
-      category,
-      description,
-      ingredients,
-      variants: newVariants,
-      images,
-    });
-
-    // Save the product in the database
-    const savedProduct = await newProduct.save();
+    savedProduct.variants = newVariants;
+    await savedProduct.save();
 
     // Send a success response with the saved product
     return res.status(200).json({
@@ -139,7 +141,9 @@ const getProductDetails = async (req, res) => {
     const product = await Product.findById(id).populate("variants");
     product.popularity += 1;
     await product.save();
-    const recomendation = await Product.find({ category: product.category }).populate("variants");
+    const recomendation = await Product.find({
+      category: product.category,
+    }).populate("variants");
 
     return res.status(200).json({
       success: true,
@@ -213,6 +217,7 @@ const editProduct = async (req, res) => {
           const exist = await Variant.findById(variant._id);
 
           if (exist) {
+            
             exist.weight = variant.weight;
             exist.price = variant.price;
             exist.quantity = variant.quantity;
@@ -222,6 +227,7 @@ const editProduct = async (req, res) => {
         }
 
         const saveVariant = new Variant({
+          productId:id,
           weight: variant.weight,
           price: variant.price,
           quantity: variant.quantity,
@@ -232,6 +238,11 @@ const editProduct = async (req, res) => {
         return savedVariant._id;
       })
     );
+    const deletedVariants =    await Variant.find({ _id: { $nin: newVariants }, productId:id });
+
+   await Promise.all(deletedVariants.map(async(variant) => {
+    await Variant.findByIdAndDelete(variant);
+   }))
 
     product.name = name;
     product.brand = brand;
@@ -273,7 +284,7 @@ const searchProducts = async (req, res) => {
     // }
 
     const sortOptions = {};
-    
+
     if (sortBy) {
       if (sortBy === "aA-zZ") {
         sortOptions.name = 1;
@@ -285,39 +296,35 @@ const searchProducts = async (req, res) => {
         sortOptions.firstVariantPrice = -1;
       } else if (sortBy === "lowToHigh") {
         sortOptions.firstVariantPrice = 1;
-      }else if(sortBy === 'popularity'){
+      } else if (sortBy === "popularity") {
         sortOptions.popularity = -1;
       }
-    }else{
+    } else {
       sortOptions.createdAt = -1;
     }
 
-    
-      const products = await Product.aggregate([
-        {
-          $lookup:{
-            from:"variants",
-            localField:"variants",
-            foreignField:"_id",
-            as:"variants"
-          }
+    const products = await Product.aggregate([
+      {
+        $lookup: {
+          from: "variants",
+          localField: "variants",
+          foreignField: "_id",
+          as: "variants",
         },
-        {
-          $set:{
-            firstVariantPrice:{$arrayElemAt:["$variants.price",0]}
-          }
-        }
-        ,
-        {
-          $match:filter
+      },
+      {
+        $set: {
+          firstVariantPrice: { $arrayElemAt: ["$variants.price", 0] },
         },
-        {
-          $sort:sortOptions
-        }
-      ]);
-      
+      },
+      {
+        $match: filter,
+      },
+      {
+        $sort: sortOptions,
+      },
+    ]);
 
-    
     return res.status(200).json({
       success: true,
       message: "successfully fetched products",

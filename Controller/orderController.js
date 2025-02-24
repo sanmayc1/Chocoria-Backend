@@ -4,28 +4,59 @@ import Product from "../Model/productModel.js";
 import dateFormat from "../utils/dateFormat.js";
 import OrderCancelRequest from "../Model/orderCancelRequest.js";
 import Variant from "../Model/variant.js";
+import Razorpay from "razorpay";
+import crypto from "crypto";
+import { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } from "../utils/envValues.js";
+import User from "../Model/userModel.js";
+import Wallet from "../Model/walletModel.js";
+import WalletTransaction from "../Model/walletTransaction.js";
 
 // create order
 const createOrder = async (req, res) => {
   try {
     const { id } = req.user;
-    const { shippingAddress, items, paymentMethod } = req.body;
-
+    let { shippingAddress, items, paymentMethod } = req.body;
+    let razorpayOrder = null;
     if (!shippingAddress || !items || !paymentMethod) {
       return res
         .status(400)
         .json({ success: false, message: "Please Check all details" });
     }
 
+    const user = await User.findById(id);
+
     const totalAmount = items.reduce(
       (sum, item) => sum + item.variant.price * item.quantity,
       0
     );
 
+    if (paymentMethod === "razorpay") {
+      paymentMethod = "Online";
+      const razorpay = new Razorpay({
+        key_id: RAZORPAY_KEY_ID,
+        key_secret: RAZORPAY_KEY_SECRET,
+      });
+      const options = {
+        amount: totalAmount * 100,
+        currency: "INR",
+        receipt: "order_rcptid_11",
+      };
+      const order = await razorpay.orders.create(options);
+
+      if (!order) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Something went wrong" });
+      }
+      razorpayOrder = order;
+    }
+    const uniqueOrderId = `ORD${Date.now().toString()}`;
     const order = new Order({
+      uniqueOrderId,
       userId: id,
       shippingAddress,
       totalAmount,
+      razorpayOrderId: razorpayOrder?.id,
       totalAmountAfterDiscount: totalAmount,
       paymentMethod,
       items: [],
@@ -47,9 +78,12 @@ const createOrder = async (req, res) => {
         });
 
         const savedOrderItem = await orderItem.save();
-        const variant = await Variant.findById(item.variant._id);
-        variant.quantity -= item.quantity;
-        await variant.save();
+        if (paymentMethod === "COD") {
+          const variant = await Variant.findById(item.variant._id);
+          variant.quantity -= item.quantity;
+          await variant.save();
+        }
+
         return savedOrderItem._id;
       })
     );
@@ -60,11 +94,78 @@ const createOrder = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Order created successfully",
-      order: order,
+      order,
+      razorpayOrder,
+      user,
     });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+// Verify razorpay payment
+
+const verifyRazorpayPayment = async (req, res) => {
+  try {
+    const { razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
+    console.log(req.body);
+    const generatedSignature = crypto
+      .createHmac("sha256", RAZORPAY_KEY_SECRET)
+      .update(razorpayOrderId + "|" + razorpayPaymentId)
+      .digest("hex");
+    console.log(generatedSignature === razorpaySignature);
+
+    if (generatedSignature !== razorpaySignature) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid signature" });
+    }
+    const order = await Order.findOne({
+      razorpayOrderId: razorpayOrderId,
+    }).populate("items");
+    order.paymentStatus = "success";
+    order.razorpayPaymentId = razorpayPaymentId;
+    await order.save();
+
+    await Promise.all(
+      order.items.map(async (item) => {
+        const variant = await Variant.findById(item.variant._id);
+        variant.quantity -= item.quantity;
+        await variant.save();
+      })
+    );
+
+    return res
+      .status(200)
+      .json({ success: true, message: "Payment verified", order });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+    return;
+  }
+};
+
+const orderStatusUpdate = async (req, res) => {
+  try {
+    console.log("hello");
+    const { razorpayOrderId } = req.body;
+
+    console.log(req.body);
+    const order = await Order.findOne({ razorpayOrderId: razorpayOrderId });
+    const orderItems = await OrderItem.find({ orderId: order._id });
+
+    Promise.all(
+      orderItems.map(async (item) => {
+        item.status = "Order Not Placed";
+        await item.save();
+      })
+    );
+
+    order.paymentStatus = "failed";
+    await order.save();
+    res.status(200).json({ success: true, message: "Order status updated" });
+  } catch (error) {
+    console.log(error);
   }
 };
 
@@ -110,7 +211,9 @@ const getOrderItemDetails = async (req, res) => {
 
 const getAllOrders = async (req, res) => {
   try {
-    let orders = await Order.find();
+    let orders = await Order.find({ paymentStatus: { $ne: "failed" } }).sort({
+      orderDate: -1,
+    });
     orders = orders.map((order) => {
       const orderDate = dateFormat(order.orderDate);
       return { ...order._doc, orderDate };
@@ -166,12 +269,16 @@ const createOrderCancelRequest = async (req, res) => {
     const { id: userId } = req.user;
     const { reason, explanation, orderItemId } = req.body;
 
-    const orderItem = await OrderItem.findOne({ _id: orderItemId });
+    const orderItem = await OrderItem.findOne({ _id: orderItemId }).populate(
+      "orderId"
+    );
     if (!orderItem) {
       return res
         .status(404)
         .json({ success: false, message: "Order item not found" });
     }
+
+    
 
     if (orderItem.status !== "Pending") {
       const cancelRequest = new OrderCancelRequest({
@@ -185,6 +292,45 @@ const createOrderCancelRequest = async (req, res) => {
       return res
         .status(200)
         .json({ success: true, message: "Request sent successfully" });
+    }
+    if (orderItem.orderId.paymentMethod !== "COD") {
+      const wallet = await Wallet.findOne({ userId: orderItem.orderId.userId });
+      const transactionId = `TXN${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+      if (!wallet) {
+        const newWallet = new Wallet({
+          userId: orderItem.orderId.userId,
+          balance: 0,
+          transactions: [],
+        });
+        const savedWallet = await newWallet.save();
+
+        const newTransaction = new WalletTransaction({
+          walletId: savedWallet._id,
+          transactionId,
+          type: "credit",
+          amount: orderItem.totalPrice,
+          status: "success",
+        });
+        await newTransaction.save();
+
+        savedWallet.transactions.push(newTransaction._id);
+        savedWallet.balance += orderItem.totalPrice;
+        await savedWallet.save();
+      }else{
+        const newTransaction = new WalletTransaction({
+          walletId:wallet._id,
+          transactionId,
+          type: "credit",
+          amount: orderItem.totalPrice,
+          status: "success",
+        });
+        await newTransaction.save();
+        wallet.transactions.push(newTransaction._id);
+        wallet.balance += orderItem.totalPrice;
+        await wallet.save();
+
+      }
+     
     }
 
     const variant = await Variant.findById(orderItem.variant._id);
@@ -275,4 +421,6 @@ export {
   getCancleRequestByItemId,
   getAllCancelRequests,
   cancelRequestUpdate,
+  verifyRazorpayPayment,
+  orderStatusUpdate,
 };

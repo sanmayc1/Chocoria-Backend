@@ -106,6 +106,12 @@ const getAllProductsFromCart = async (req, res) => {
       .populate("products.productId")
       .populate("products.variant");
 
+      if (!cart) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Cart not found" });
+      }
+
     cart.products = cart.products
       .filter(
         (product) =>
@@ -125,11 +131,7 @@ const getAllProductsFromCart = async (req, res) => {
       .populate("products.productId")
       .populate("products.variant");
 
-    if (!cart) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Cart not found" });
-    }
+  
     return res.status(200).json({ success: true, cart: updatedCart });
   } catch (error) {
     console.log(error);

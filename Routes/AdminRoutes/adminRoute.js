@@ -24,37 +24,24 @@ import {
   softDeleteProduct,
 } from "../../Controller/productController.js";
 import adminOrderRoute from "./orderRoutes.js";
+import AdmincouponRoute from "./couponRoute.js";
+import { addOffer, getAllOffers } from "../../Controller/offerController.js";
 
 const adminRoute = Router();
 
-// auth routes
-adminRoute.post("/auth/login",authAdminLogin);
+adminRoute.post("/auth/login", authAdminLogin);
 
-// fecth all users
+adminRoute.get("/users", jwtVerify, verifyAdmin, getAllUsers);
 
-adminRoute.get("/users", jwtVerify, verifyAdmin,getAllUsers);
+adminRoute.patch("/block-user/:id", jwtVerify, verifyAdmin, softDeleteUser);
 
-// block user
+adminRoute.delete("/delete-user/:id", jwtVerify, verifyAdmin, deleteUser);
 
-adminRoute.patch("/block-user/:id", jwtVerify, verifyAdmin,softDeleteUser);
+adminRoute.post("/add-category", jwtVerify, verifyAdmin, addCategory);
 
-// delete user
+adminRoute.get("/category", jwtVerify, verifyAdmin, getCategories);
 
-adminRoute.delete("/delete-user/:id", jwtVerify, verifyAdmin,deleteUser);
-
-// add category
-
-adminRoute.post("/add-category", jwtVerify, verifyAdmin,addCategory);
-
-// get all categories
-
-adminRoute.get("/category", jwtVerify, verifyAdmin,getCategories);
-
-// edit category
-
-adminRoute.patch("/edit-category", jwtVerify, verifyAdmin,editCategory);
-
-// delete category
+adminRoute.patch("/edit-category", jwtVerify, verifyAdmin, editCategory);
 
 adminRoute.delete(
   "/delete-category/:id",
@@ -63,16 +50,12 @@ adminRoute.delete(
   deleteCategory
 );
 
-// soft delete category
-
 adminRoute.patch(
   "/category/soft-delete",
   jwtVerify,
   verifyAdmin,
   softDeleteCategory
 );
-
-// add products
 
 adminRoute.post(
   "/products",
@@ -82,11 +65,7 @@ adminRoute.post(
   addProduct
 );
 
-// fetch all products
-
 adminRoute.get("/products", jwtVerify, verifyAdmin, getProducts);
-
-// soft delete product
 
 adminRoute.patch(
   "/products/soft-delete",
@@ -95,11 +74,7 @@ adminRoute.patch(
   softDeleteProduct
 );
 
-// get product details
-
-adminRoute.get("/products/:id", jwtVerify, verifyAdmin,getProductDetails);
-
-// edit product
+adminRoute.get("/products/:id", jwtVerify, verifyAdmin, getProductDetails);
 
 adminRoute.patch(
   "/products/:id",
@@ -109,12 +84,14 @@ adminRoute.patch(
   editProduct
 );
 
-// delete
+adminRoute.delete("/products/:id", jwtVerify, verifyAdmin, deleteProduct);
 
-adminRoute.delete("/products/:id", jwtVerify, verifyAdmin,deleteProduct);
-
-// order
+adminRoute.post("/offer", jwtVerify, verifyAdmin, addOffer);
+adminRoute.get("/offers", jwtVerify, verifyAdmin, getAllOffers);
 
 adminRoute.use("/orders", jwtVerify, verifyAdmin, adminOrderRoute);
+
+adminRoute.use("/coupon", jwtVerify, verifyAdmin, AdmincouponRoute);
+
 
 export default adminRoute;

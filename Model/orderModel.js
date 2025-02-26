@@ -6,12 +6,11 @@ const OrderSchema = new mongoose.Schema({
     uniqueOrderId:{type:String,required:true},
     items: [{ type: mongoose.Schema.Types.ObjectId, ref: "OrderItem" }], // Referencing Order Items
     totalAmount: { type: Number, required: true },
-    discount: { type: Number, default: 0 },
-    couponCode: { type: String, default: null }, // Applied coupon code
+    couponDiscount: { type: Number, default: 0 },
+    coupon: { type: Object, default: null }, // Applied coupon code
     totalAmountAfterDiscount: { type: Number, required: true }, 
     orderDate: { type: Date, default: Date.now },
     paymentMethod: { type: String, enum: ["COD","Online"], required: true },
-    paymentStatus: { type: String, enum: ["pending", "success", "failed"], default: "pending" },
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
     shippingAddress: {

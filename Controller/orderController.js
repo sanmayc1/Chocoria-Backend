@@ -10,12 +10,15 @@ import { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } from "../utils/envValues.js";
 import User from "../Model/userModel.js";
 import Wallet from "../Model/walletModel.js";
 import WalletTransaction from "../Model/walletTransaction.js";
+import UsedCoupon from "../Model/usedCoupon.js";
+import Coupon from "../Model/couponModel.js";
 
 // create order
 const createOrder = async (req, res) => {
   try {
     const { id } = req.user;
-    let { shippingAddress, items, paymentMethod } = req.body;
+    let { shippingAddress, items, paymentMethod, coupon, couponDiscount } =
+      req.body;
     let razorpayOrder = null;
     if (!shippingAddress || !items || !paymentMethod) {
       return res
@@ -30,6 +33,8 @@ const createOrder = async (req, res) => {
       0
     );
 
+    const totalAmountAfterDiscount = totalAmount - couponDiscount;
+
     if (paymentMethod === "razorpay") {
       paymentMethod = "Online";
       const razorpay = new Razorpay({
@@ -37,7 +42,7 @@ const createOrder = async (req, res) => {
         key_secret: RAZORPAY_KEY_SECRET,
       });
       const options = {
-        amount: totalAmount * 100,
+        amount: totalAmountAfterDiscount * 100,
         currency: "INR",
         receipt: "order_rcptid_11",
       };
@@ -50,14 +55,17 @@ const createOrder = async (req, res) => {
       }
       razorpayOrder = order;
     }
+
     const uniqueOrderId = `ORD${Date.now().toString()}`;
     const order = new Order({
       uniqueOrderId,
       userId: id,
+      couponDiscount,
+      coupon,
       shippingAddress,
       totalAmount,
       razorpayOrderId: razorpayOrder?.id,
-      totalAmountAfterDiscount: totalAmount,
+      totalAmountAfterDiscount,
       paymentMethod,
       items: [],
     });
@@ -66,14 +74,26 @@ const createOrder = async (req, res) => {
 
     const orderItems = await Promise.all(
       items.map(async (item) => {
+        const couponDiscountOfEachItem = couponDiscount
+          ? (
+              ((item.variant.price * item.quantity) / totalAmount) *
+              couponDiscount
+            ).toFixed(2)
+          : 0;
+
         const orderItem = new OrderItem({
           orderId: order._id,
           productId: item.productId._id,
           name: item.productId.name,
           brand: item.productId.brand,
+          couponDiscount: couponDiscountOfEachItem,
           img: item.productId.images[0],
           variant: item.variant,
           quantity: item.quantity,
+          totalAmountAfterDiscount: (
+            item.variant.price * item.quantity -
+            couponDiscountOfEachItem
+          ).toFixed(2),
           totalPrice: item.variant.price * item.quantity,
         });
 
@@ -82,6 +102,24 @@ const createOrder = async (req, res) => {
           const variant = await Variant.findById(item.variant._id);
           variant.quantity -= item.quantity;
           await variant.save();
+
+          if (coupon) {
+            const couponUse = await UsedCoupon.findOne({
+              couponCode: coupon._id,
+              userId: id,
+            });
+            if (!couponUse) {
+              const newUsedCoupon = new UsedCoupon({
+                couponCode: coupon._id,
+                userId: id,
+                usageCount: 1,
+              });
+              await newUsedCoupon.save();
+            } else {
+              couponUse.usageCount += 1;
+              await couponUse.save();
+            }
+          }
         }
 
         return savedOrderItem._id;
@@ -123,7 +161,6 @@ const verifyRazorpayPayment = async (req, res) => {
     const order = await Order.findOne({
       razorpayOrderId: razorpayOrderId,
     }).populate("items");
-    order.paymentStatus = "success";
     order.razorpayPaymentId = razorpayPaymentId;
     await order.save();
 
@@ -132,8 +169,28 @@ const verifyRazorpayPayment = async (req, res) => {
         const variant = await Variant.findById(item.variant._id);
         variant.quantity -= item.quantity;
         await variant.save();
+        const orderItem = await OrderItem.findById(item._id);
+        orderItem.paymentStatus = "success";
+        await orderItem.save();
       })
     );
+    if (order.coupon) {
+      const couponUse = await UsedCoupon.findOne({
+        couponCode: order.coupon._id,
+        userId: order.userId,
+      });
+      if (!couponUse) {
+        const newUsedCoupon = new UsedCoupon({
+          couponCode: order.coupon._id,
+          userId: order.userId,
+          usageCount: 1,
+        });
+        await newUsedCoupon.save();
+      } else {
+        couponUse.usageCount += 1;
+        await couponUse.save();
+      }
+    }
 
     return res
       .status(200)
@@ -147,22 +204,20 @@ const verifyRazorpayPayment = async (req, res) => {
 
 const orderStatusUpdate = async (req, res) => {
   try {
-    console.log("hello");
     const { razorpayOrderId } = req.body;
 
     console.log(req.body);
     const order = await Order.findOne({ razorpayOrderId: razorpayOrderId });
     const orderItems = await OrderItem.find({ orderId: order._id });
 
-    Promise.all(
+   await Promise.all(
       orderItems.map(async (item) => {
         item.status = "Order Not Placed";
+        item.paymentStatus = "failed";
         await item.save();
       })
     );
 
-    order.paymentStatus = "failed";
-    await order.save();
     res.status(200).json({ success: true, message: "Order status updated" });
   } catch (error) {
     console.log(error);
@@ -211,13 +266,31 @@ const getOrderItemDetails = async (req, res) => {
 
 const getAllOrders = async (req, res) => {
   try {
-    let orders = await Order.find({ paymentStatus: { $ne: "failed" } }).sort({
-      orderDate: -1,
-    });
-    orders = orders.map((order) => {
-      const orderDate = dateFormat(order.orderDate);
-      return { ...order._doc, orderDate };
-    });
+    const orders = await Order.aggregate([
+      {
+        $lookup: {
+          from: "orderitems",
+          localField: "items",
+          foreignField: "_id",
+          as: "items",
+        },
+      },
+      {
+        $match: {
+          "items.paymentStatus": {
+            $ne: "failed",
+          },
+        },
+      },
+
+      {
+        $sort: {
+          orderDate: -1,
+        },
+      },
+    ]);
+    console.log(orders);
+
     res.status(200).json({ success: true, orders });
   } catch (error) {
     console.log(error);
@@ -252,6 +325,10 @@ const changeOrderStatus = async (req, res) => {
       variant.quantity += order.quantity;
       await variant.save();
     }
+    if (status === "Delivered") {
+      order.paymentStatus = "success";
+      await order.save();
+    }
 
     order.status = status;
     await order.save();
@@ -278,8 +355,6 @@ const createOrderCancelRequest = async (req, res) => {
         .json({ success: false, message: "Order item not found" });
     }
 
-    
-
     if (orderItem.status !== "Pending") {
       const cancelRequest = new OrderCancelRequest({
         orderId,
@@ -295,7 +370,9 @@ const createOrderCancelRequest = async (req, res) => {
     }
     if (orderItem.orderId.paymentMethod !== "COD") {
       const wallet = await Wallet.findOne({ userId: orderItem.orderId.userId });
-      const transactionId = `TXN${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+      const transactionId = `TXN${Date.now()}${Math.floor(
+        1000 + Math.random() * 9000
+      )}`;
       if (!wallet) {
         const newWallet = new Wallet({
           userId: orderItem.orderId.userId,
@@ -316,9 +393,9 @@ const createOrderCancelRequest = async (req, res) => {
         savedWallet.transactions.push(newTransaction._id);
         savedWallet.balance += orderItem.totalPrice;
         await savedWallet.save();
-      }else{
+      } else {
         const newTransaction = new WalletTransaction({
-          walletId:wallet._id,
+          walletId: wallet._id,
           transactionId,
           type: "credit",
           amount: orderItem.totalPrice,
@@ -328,9 +405,7 @@ const createOrderCancelRequest = async (req, res) => {
         wallet.transactions.push(newTransaction._id);
         wallet.balance += orderItem.totalPrice;
         await wallet.save();
-
       }
-     
     }
 
     const variant = await Variant.findById(orderItem.variant._id);

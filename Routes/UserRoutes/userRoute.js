@@ -22,6 +22,8 @@ import orderRoute from "./OrderRoutes.js";
 import { getCategories } from "../../Controller/categoryController.js";
 import wishlistRoute from "./wishlistRoute.js";
 import { getWalletByUserId } from "../../Controller/walletController.js";
+import userCouponRoute from "./couponRoutes.js";
+
 const userRoute = Router();
 
 userRoute.post("/auth/signup", userDataValidation, authSignUp);
@@ -45,4 +47,5 @@ userRoute.use("/address", jwtVerify, addressRoute);
 userRoute.use("/cart", jwtVerify, cartRoute);
 userRoute.use("/order",jwtVerify, orderRoute);
 userRoute.use("/wishlist",jwtVerify, wishlistRoute)
+userRoute.use("/coupon",jwtVerify, userCouponRoute)
 export default userRoute;

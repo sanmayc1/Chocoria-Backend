@@ -210,7 +210,7 @@ const orderStatusUpdate = async (req, res) => {
     const order = await Order.findOne({ razorpayOrderId: razorpayOrderId });
     const orderItems = await OrderItem.find({ orderId: order._id });
 
-   await Promise.all(
+    await Promise.all(
       orderItems.map(async (item) => {
         item.status = "Order Not Placed";
         item.paymentStatus = "failed";
@@ -289,9 +289,12 @@ const getAllOrders = async (req, res) => {
         },
       },
     ]);
+    const orderCancelRequests = await OrderCancelRequest.countDocuments({
+      status: "pending",
+    });
     console.log(orders);
 
-    res.status(200).json({ success: true, orders });
+    res.status(200).json({ success: true, orders , orderCancelRequests});
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -385,27 +388,28 @@ const createOrderCancelRequest = async (req, res) => {
           walletId: savedWallet._id,
           transactionId,
           type: "credit",
-          amount: orderItem.totalPrice,
+          amount: orderItem.totalAmountAfterDiscount,
           status: "success",
         });
         await newTransaction.save();
 
         savedWallet.transactions.push(newTransaction._id);
-        savedWallet.balance += orderItem.totalPrice;
+        savedWallet.balance += orderItem.totalAmountAfterDiscount;
         await savedWallet.save();
       } else {
         const newTransaction = new WalletTransaction({
           walletId: wallet._id,
           transactionId,
           type: "credit",
-          amount: orderItem.totalPrice,
+          amount: orderItem.totalAmountAfterDiscount,
           status: "success",
         });
         await newTransaction.save();
         wallet.transactions.push(newTransaction._id);
-        wallet.balance += orderItem.totalPrice;
+        wallet.balance += orderItem.totalAmountAfterDiscount;
         await wallet.save();
       }
+      orderItem.paymentStatus = "refunded";
     }
 
     const variant = await Variant.findById(orderItem.variant._id);
@@ -461,6 +465,47 @@ const cancelRequestUpdate = async (req, res) => {
         _id: cancelRequest.orderItem,
       });
       orderItem.status = "Cancelled";
+      if (orderItem.paymentStatus === "success" && status === "approved") {
+        const wallet = await Wallet.findOne({ userId: cancelRequest.userId });
+        if (!wallet) {
+          const newWallet = new Wallet({
+            userId: cancelRequest.userId,
+            balance: 0,
+            transactions: [],
+          });
+          const savedWallet = await newWallet.save();
+          const transactionId = `TXN${Date.now()}${Math.floor(
+            1000 + Math.random() * 9000
+          )}`;
+          const newTransaction = new WalletTransaction({
+            walletId: savedWallet._id,
+            transactionId,
+            type: "credit",
+            amount: orderItem.totalAmountAfterDiscount,
+            status: "success",
+          });
+          await newTransaction.save();
+          savedWallet.transactions.push(newTransaction._id);
+          savedWallet.balance += newTransaction.amount;
+          await savedWallet.save();
+        } else {
+          const transactionId = `TXN${Date.now()}${Math.floor(
+            1000 + Math.random() * 9000
+          )}`;
+          const newTransaction = new WalletTransaction({
+            walletId: wallet._id,
+            transactionId,
+            type: "credit",
+            amount: orderItem.totalAmountAfterDiscount,
+            status: "success",
+          });
+          await newTransaction.save();
+          wallet.transactions.push(newTransaction._id);
+          wallet.balance += newTransaction.amount;
+          await wallet.save();
+        }
+        orderItem.paymentStatus = "refunded";
+      }
       await orderItem.save();
 
       const product = await Product.findById(orderItem.productId);

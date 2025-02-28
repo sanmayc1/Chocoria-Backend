@@ -12,7 +12,7 @@ const addOffer = async (req, res) => {
       expiryDate,
       specific,
     } = req.body;
-    console.log(req.body);
+ 
     const exists = await Offer.findOne({
       offerTitle: offerTitle.trim().toLowerCase(),
     });
@@ -30,6 +30,11 @@ const addOffer = async (req, res) => {
           .status(409)
           .json({ success: false, message: "Product not found" });
       }
+      if (product.offer) {
+        return res
+          .status(409)
+          .json({ success: false, message: "Product already has an offer" });
+      }
 
       const offer = new Offer({
         offerTitle: offerTitle.trim().toLowerCase(),
@@ -41,7 +46,7 @@ const addOffer = async (req, res) => {
       });
       const savedOffer = await offer.save();
 
-      product.offer.push(savedOffer._id);
+      product.offer = savedOffer._id;
       await product.save();
 
       return res
@@ -65,7 +70,7 @@ const addOffer = async (req, res) => {
       });
 
       const savedOffer = await offer.save();
-      category.offers.push(savedOffer._id);
+      category.offer = savedOffer._id;
       await category.save();
 
       return res
@@ -80,12 +85,12 @@ const addOffer = async (req, res) => {
 
 const getAllOffers = async (req, res) => {
   try {
-    const productsOffers = await Offer.find({ applicableOn: "product" }).populate(
-      "specificProduct"
-    );
-    const categoryOffers = await Offer.find({ applicableOn: "category" }).populate(
-      "specificCategory"
-    );
+    const productsOffers = await Offer.find({
+      applicableOn: "product",
+    }).populate("specificProduct");
+    const categoryOffers = await Offer.find({
+      applicableOn: "category",
+    }).populate("specificCategory");
     res.status(200).json({ success: true, productsOffers, categoryOffers });
   } catch (error) {
     console.log(error);

@@ -4,7 +4,10 @@ const getWalletByUserId = async (req, res) => {
   try {
     const { id } = req.user;
     const wallet = await Wallet.findOne({ userId: id }).populate(
-      "transactions"
+      {
+        path: "transactions",
+        options: { sort: { createdAt: -1 } },
+      }
     );
     if (!wallet) {
       const newWallet = new Wallet({

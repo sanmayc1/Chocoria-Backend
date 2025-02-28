@@ -1,4 +1,5 @@
 import Category from "../Model/categoryModel.js";
+import Product from "../Model/productModel.js";
 
 // ADD TO category
 
@@ -73,6 +74,16 @@ const deleteCategory = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Category not found" });
+    }
+    const categoryProducts = await Product.countDocuments({
+      category: category._id,
+    });
+  
+    if (categoryProducts > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Category cannot be deleted as it has products",
+      });
     }
     await Category.findByIdAndDelete(id);
     res

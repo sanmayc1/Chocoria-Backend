@@ -37,9 +37,9 @@ const productSchema = new mongoose.Schema({
         required:true
     },
     offer:{
-        type:[mongoose.Schema.Types.ObjectId],
+        type:mongoose.Schema.Types.ObjectId,
         ref:"Offer",
-        default:[]
+        default:null
     },
     popularity:{
         type:Number,

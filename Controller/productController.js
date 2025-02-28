@@ -2,13 +2,14 @@ import Product from "../Model/productModel.js";
 import fs from "fs";
 import Variant from "../Model/variant.js";
 import mongoose from "mongoose";
+import path from "path";
+import offerCalculate from "../utils/offerCalculate.js";
 // add new product
 
 const addProduct = async (req, res) => {
   try {
     const { name, brand, category, description, ingredients } = req.body;
     const variants = JSON.parse(req.body.variants);
-
 
     const images = req.files.map((file) => `/img/${file.filename}`);
 
@@ -28,7 +29,7 @@ const addProduct = async (req, res) => {
     const newVariants = await Promise.all(
       variants.map(async (variant) => {
         const saveVariant = new Variant({
-          productId:savedProduct._id,
+          productId: savedProduct._id,
           weight: variant.weight,
           price: variant.price,
           quantity: variant.quantity,
@@ -217,7 +218,6 @@ const editProduct = async (req, res) => {
           const exist = await Variant.findById(variant._id);
 
           if (exist) {
-            
             exist.weight = variant.weight;
             exist.price = variant.price;
             exist.quantity = variant.quantity;
@@ -227,7 +227,7 @@ const editProduct = async (req, res) => {
         }
 
         const saveVariant = new Variant({
-          productId:id,
+          productId: id,
           weight: variant.weight,
           price: variant.price,
           quantity: variant.quantity,
@@ -238,11 +238,16 @@ const editProduct = async (req, res) => {
         return savedVariant._id;
       })
     );
-    const deletedVariants =    await Variant.find({ _id: { $nin: newVariants }, productId:id });
+    const deletedVariants = await Variant.find({
+      _id: { $nin: newVariants },
+      productId: id,
+    });
 
-   await Promise.all(deletedVariants.map(async(variant) => {
-    await Variant.findByIdAndDelete(variant);
-   }))
+    await Promise.all(
+      deletedVariants.map(async (variant) => {
+        await Variant.findByIdAndDelete(variant);
+      })
+    );
 
     product.name = name;
     product.brand = brand;
@@ -321,18 +326,72 @@ const searchProducts = async (req, res) => {
         $match: filter,
       },
       {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      {
+        $unwind: {
+          path: "$category",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "offers",
+          localField: "category.offer",
+          foreignField: "_id",
+          as: "category.offer",
+        },
+      },
+      {
+        $unwind: {
+          path: "$category.offer",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
         $sort: sortOptions,
       },
     ]);
-
+    const productsWithOfferApplied = offerCalculate(products);
     return res.status(200).json({
       success: true,
       message: "successfully fetched products",
-      products,
+      products: productsWithOfferApplied,
     });
   } catch (error) {
     console.log(error);
 
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const getProductsUserSideListing = async (req, res) => {
+  try {
+    let products = await Product.find({ is_deleted: false })
+      .populate({
+        path: "category",
+        populate: {
+          path: "offer",
+        },
+      })
+      .populate("variants")
+      .populate("offer")
+      .limit(10);
+
+    const productsWithOfferApplied = offerCalculate(products);
+
+    res.status(200).json({
+      success: true,
+      message: "successfully fetched products",
+      products: productsWithOfferApplied,
+    });
+  } catch (error) {
+    console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
@@ -345,4 +404,5 @@ export {
   getProductDetails,
   editProduct,
   searchProducts,
+  getProductsUserSideListing,
 };

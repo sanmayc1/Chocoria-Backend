@@ -1,7 +1,9 @@
+import { populate } from "dotenv";
 import Cart from "../Model/cartModel.js";
 import Product from "../Model/productModel.js";
 import User from "../Model/userModel.js";
 import Variant from "../Model/variant.js";
+import offerCalculate from "../utils/offerCalculate.js";
 
 const addtocart = async (req, res) => {
   try {
@@ -9,12 +11,10 @@ const addtocart = async (req, res) => {
     const { id } = req.user;
 
     if (products.quantity > 8) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "A person can only buy a maximum of 8 items at once",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "A person can only buy a maximum of 8 items at once",
+      });
     }
 
     // check this user have a cart if no create one
@@ -103,14 +103,22 @@ const getAllProductsFromCart = async (req, res) => {
   try {
     const { id } = req.user;
     const cart = await Cart.findOne({ userId: id })
-      .populate("products.productId")
+      .populate({
+        path: "products.productId",
+        populate: {
+          path: "category",
+          populate: {
+            path: "offer",
+          },
+        },
+      })
       .populate("products.variant");
 
-      if (!cart) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Cart not found" });
-      }
+    if (!cart) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Cart not found" });
+    }
 
     cart.products = cart.products
       .filter(
@@ -128,10 +136,27 @@ const getAllProductsFromCart = async (req, res) => {
 
     await cart.save();
     const updatedCart = await Cart.findById(cart._id)
-      .populate("products.productId")
-      .populate("products.variant");
-
-  
+      .populate({
+        path: "products.productId",
+        populate: {
+          path: "category",
+          populate: {
+            path: "offer",
+          },
+        },
+      })
+      .populate("products.variant").lean();
+    
+     updatedCart.products.forEach((product) => {
+      if(product.productId.offer || product.productId.category.offer){
+        product.variant = product.variant
+        const calculateOffer = offerCalculate([product.productId], product.variant)
+        product.productId =  calculateOffer?.products[0] 
+        product.variant = calculateOffer?.variant
+      } 
+    
+    })
+   
     return res.status(200).json({ success: true, cart: updatedCart });
   } catch (error) {
     console.log(error);
@@ -149,12 +174,10 @@ const quantityUpdate = async (req, res) => {
     const { productId, quantity, variantId } = req.body;
 
     if (quantity > 8) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "A person can only buy a maximum of 8 items at once",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "A person can only buy a maximum of 8 items at once",
+      });
     }
 
     const cart = await Cart.findOne({ userId: id }).populate(
@@ -178,12 +201,10 @@ const quantityUpdate = async (req, res) => {
     }
 
     if (product.variant.quantity < quantity) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Sorry! We don't have any more units for this item.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Sorry! We don't have any more units for this item.",
+      });
     }
 
     product.quantity = quantity;

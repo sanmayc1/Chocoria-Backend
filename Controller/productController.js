@@ -135,21 +135,61 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-const getProductDetails = async (req, res) => {
+const getProductDetailsAdmin = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const product = await Product.findById(id).populate("variants");
-    product.popularity += 1;
-    await product.save();
-    const recomendation = await Product.find({
-      category: product.category,
-    }).populate("variants");
+    let product = await Product.findById(id).populate("variants");
+
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
+    }
 
     return res.status(200).json({
       success: true,
       message: "successfully fetched products",
       product,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const getProductDetailsUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    let product = await Product.findById(id);
+
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
+    }
+    product.popularity += 1;
+    await product.save();
+    product = await Product.findById(id)
+      .populate("variants")
+      .populate("offer")
+      .populate({
+        path: "category",
+        populate: {
+          path: "offer",
+        },
+      })
+      .lean();
+    const productsWithOfferApplied = offerCalculate([product])
+    const recomendation = await Product.find({
+      category: product.category._id,
+    }).populate("variants");
+
+    return res.status(200).json({
+      success: true,
+      message: "successfully fetched products",
+      product: productsWithOfferApplied[0],
       recomendation,
     });
   } catch (error) {
@@ -318,6 +358,20 @@ const searchProducts = async (req, res) => {
         },
       },
       {
+      $lookup: {
+        from: "offers",
+        localField: "offer",
+        foreignField: "_id",
+        as: "offer",
+      },
+      },
+      {
+       $unwind:{
+        path:"$offer",
+        preserveNullAndEmptyArrays:true
+       }
+      },
+      {
         $set: {
           firstVariantPrice: { $arrayElemAt: ["$variants.price", 0] },
         },
@@ -381,7 +435,8 @@ const getProductsUserSideListing = async (req, res) => {
       })
       .populate("variants")
       .populate("offer")
-      .limit(10);
+      .limit(10)
+      .lean();
 
     const productsWithOfferApplied = offerCalculate(products);
 
@@ -401,7 +456,8 @@ export {
   getProducts,
   softDeleteProduct,
   deleteProduct,
-  getProductDetails,
+  getProductDetailsUser,
+  getProductDetailsAdmin,
   editProduct,
   searchProducts,
   getProductsUserSideListing,

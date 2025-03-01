@@ -13,10 +13,6 @@ const offerSchema = new mongoose.Schema({
         type:Number,
         required:true
     },
-    maximumDiscount:{
-        type:Number,
-        required:true
-    },
     specificProduct:{
         type:mongoose.Schema.Types.ObjectId,
         ref:"Product",

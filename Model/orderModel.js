@@ -4,10 +4,11 @@ import mongoose from "mongoose";
 const OrderSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     uniqueOrderId:{type:String,required:true},
-    items: [{ type: mongoose.Schema.Types.ObjectId, ref: "OrderItem" }], // Referencing Order Items
+    items: [{ type: mongoose.Schema.Types.ObjectId, ref: "OrderItem" }], 
     totalAmount: { type: Number, required: true },
     couponDiscount: { type: Number, default: 0 },
-    coupon: { type: Object, default: null }, // Applied coupon code
+    offerDiscount: { type: Number, default: 0 },
+    coupon: { type: Object, default: null }, 
     totalAmountAfterDiscount: { type: Number, required: true }, 
     orderDate: { type: Date, default: Date.now },
     paymentMethod: { type: String, enum: ["COD","Online"], required: true },

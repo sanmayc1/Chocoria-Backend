@@ -1,12 +1,12 @@
 import express from "express";
-import {getProductDetails, getProductsUserSideListing, searchProducts } from "../../Controller/productController.js";
+import {getProductDetailsUser, getProductsUserSideListing, searchProducts } from "../../Controller/productController.js";
 const productRoute = express.Router()
 
 productRoute.get("/",getProductsUserSideListing)
 
 productRoute.get("/search",searchProducts)
 
-productRoute.get("/:id",getProductDetails)
+productRoute.get("/:id",getProductDetailsUser)
 
 
 

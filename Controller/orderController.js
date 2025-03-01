@@ -28,12 +28,29 @@ const createOrder = async (req, res) => {
 
     const user = await User.findById(id);
 
-    const totalAmount = items.reduce(
-      (sum, item) => sum + item.variant.price * item.quantity,
-      0
-    );
+    let totalAmount = 0;
+    let totalAmountAfterOfferDiscount = 0;
 
-    const totalAmountAfterDiscount = totalAmount - couponDiscount;
+    for (let item of items) {
+      const variant = await Variant.findById(item.variant._id);
+      if (!variant) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Variant not found" });
+      }
+      if (variant.quantity < item.quantity) {
+        return res
+          .status(409)
+          .json({ success: false, message: "Product out of stock" });
+      }
+
+      let price = item.variant.actualPrice ?? item.variant.price;
+      totalAmount += price * item.quantity;
+      totalAmountAfterOfferDiscount += item.variant.price * item.quantity;
+    }
+
+    const totalAmountAfterDiscount =
+      totalAmountAfterOfferDiscount - couponDiscount;
 
     if (paymentMethod === "razorpay") {
       paymentMethod = "Online";
@@ -44,7 +61,7 @@ const createOrder = async (req, res) => {
       const options = {
         amount: totalAmountAfterDiscount * 100,
         currency: "INR",
-        receipt: "order_rcptid_11",
+        receipt: `receipt${Date.now()}`,
       };
       const order = await razorpay.orders.create(options);
 
@@ -62,6 +79,7 @@ const createOrder = async (req, res) => {
       userId: id,
       couponDiscount,
       coupon,
+      offerDiscount: totalAmount - totalAmountAfterOfferDiscount,
       shippingAddress,
       totalAmount,
       razorpayOrderId: razorpayOrder?.id,
@@ -75,17 +93,21 @@ const createOrder = async (req, res) => {
     const orderItems = await Promise.all(
       items.map(async (item) => {
         const couponDiscountOfEachItem = couponDiscount
-          ? (
+          ? Math.round(
               ((item.variant.price * item.quantity) / totalAmount) *
-              couponDiscount
-            ).toFixed(2)
+                couponDiscount
+            )
           : 0;
+        const price = item.variant.actualPrice ?? item.variant.price;
+        const totalPrice = price * item.quantity;
 
         const orderItem = new OrderItem({
           orderId: order._id,
           productId: item.productId._id,
           name: item.productId.name,
           brand: item.productId.brand,
+          offerDiscount: totalPrice - item.variant.price * item.quantity,
+          offer: item.productId.offer,
           couponDiscount: couponDiscountOfEachItem,
           img: item.productId.images[0],
           variant: item.variant,
@@ -94,7 +116,7 @@ const createOrder = async (req, res) => {
             item.variant.price * item.quantity -
             couponDiscountOfEachItem
           ).toFixed(2),
-          totalPrice: item.variant.price * item.quantity,
+          totalPrice,
         });
 
         const savedOrderItem = await orderItem.save();
@@ -294,7 +316,7 @@ const getAllOrders = async (req, res) => {
     });
     console.log(orders);
 
-    res.status(200).json({ success: true, orders , orderCancelRequests});
+    res.status(200).json({ success: true, orders, orderCancelRequests });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -530,6 +552,44 @@ const cancelRequestUpdate = async (req, res) => {
   }
 };
 
+const getAllDeliveredOrders = async (req, res) => {
+  try {
+    // const orders = await OrderItem.find({ status: "Delivered" }).populate(
+    //   "orderId"
+    // )
+    const orders = await OrderItem.aggregate([
+      {
+        $match:{
+          status:"Delivered"
+        }
+      },
+      {
+        $lookup:{
+          from:"orders",
+          localField:"orderId",
+          foreignField:"_id",
+          as:"orderId"
+        }
+      },
+
+      {
+        $unwind:"$orderId",    
+      },
+      {
+        $sort:{
+          "orderId.orderDate": -1
+        }
+      }
+      
+    ])
+    res.status(200).json({ success: true, orders , message: "All Delivered Orders" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+    
+  }
+}
+
 export {
   createOrder,
   getAllOrderOfUser,
@@ -543,4 +603,5 @@ export {
   cancelRequestUpdate,
   verifyRazorpayPayment,
   orderStatusUpdate,
+  getAllDeliveredOrders,
 };

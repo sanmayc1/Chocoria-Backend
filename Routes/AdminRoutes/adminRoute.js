@@ -19,13 +19,13 @@ import {
   addProduct,
   deleteProduct,
   editProduct,
-  getProductDetails,
+  getProductDetailsAdmin,
   getProducts,
   softDeleteProduct,
 } from "../../Controller/productController.js";
 import adminOrderRoute from "./orderRoutes.js";
 import AdmincouponRoute from "./couponRoute.js";
-import { addOffer, getAllOffers } from "../../Controller/offerController.js";
+import { addOffer, deleteOffer, getAllOffers } from "../../Controller/offerController.js";
 
 const adminRoute = Router();
 
@@ -74,7 +74,7 @@ adminRoute.patch(
   softDeleteProduct
 );
 
-adminRoute.get("/products/:id", jwtVerify, verifyAdmin, getProductDetails);
+adminRoute.get("/products/:id", jwtVerify, verifyAdmin, getProductDetailsAdmin);
 
 adminRoute.patch(
   "/products/:id",
@@ -87,6 +87,7 @@ adminRoute.patch(
 adminRoute.delete("/products/:id", jwtVerify, verifyAdmin, deleteProduct);
 
 adminRoute.post("/offer", jwtVerify, verifyAdmin, addOffer);
+adminRoute.delete("/offer/:id", jwtVerify, verifyAdmin, deleteOffer);
 adminRoute.get("/offers", jwtVerify, verifyAdmin, getAllOffers);
 
 adminRoute.use("/orders", jwtVerify, verifyAdmin, adminOrderRoute);

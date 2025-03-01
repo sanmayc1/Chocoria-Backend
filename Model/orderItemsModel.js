@@ -17,6 +17,8 @@ const OrderItemSchema = new mongoose.Schema({
   variant: { type: Object, required: true },
   couponDiscount: { type: Number, default: 0 },
   quantity: { type: Number, required: true },
+  offerDiscount: { type: Number, default: 0 },
+  offer: { type: Object, default: null },
   totalPrice: { type: Number, required: true },
   totalAmountAfterDiscount: { type: Number, required: true },
   status: {

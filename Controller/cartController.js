@@ -112,6 +112,7 @@ const getAllProductsFromCart = async (req, res) => {
           },
         },
       })
+
       .populate("products.variant");
 
     if (!cart) {
@@ -123,15 +124,17 @@ const getAllProductsFromCart = async (req, res) => {
     cart.products = cart.products
       .filter(
         (product) =>
-          product.productId &&
-          !product.productId.is_deleted &&
-          product.variant &&
-          product.variant.quantity > 0
+          product.productId && !product.productId.is_deleted && product.variant
       )
       .map((product) => ({
         productId: product.productId._id,
         variant: product.variant._id,
-        quantity: Math.min(product.quantity, product.variant.quantity),
+        quantity:
+          product.quantity > product.variant.quantity
+            ? product.variant.quantity
+            : product.quantity === 0 && product.variant.quantity > 0
+            ? 1
+            : product.quantity,
       }));
 
     await cart.save();
@@ -145,18 +148,27 @@ const getAllProductsFromCart = async (req, res) => {
           },
         },
       })
-      .populate("products.variant").lean();
-    
-     updatedCart.products.forEach((product) => {
-      if(product.productId.offer || product.productId.category.offer){
-        product.variant = product.variant
-        const calculateOffer = offerCalculate([product.productId], product.variant)
-        product.productId =  calculateOffer?.products[0] 
-        product.variant = calculateOffer?.variant
-      } 
-    
-    })
-   
+      .populate({
+        path: "products.productId",
+        populate: {
+          path: "offer",
+        },
+      })
+      .populate("products.variant")
+      .lean();
+
+    updatedCart.products.forEach((product) => {
+      if (product.productId.offer || product.productId.category.offer) {
+        product.variant = product.variant;
+        const calculateOffer = offerCalculate(
+          [product.productId],
+          product.variant
+        );
+        product.productId = calculateOffer?.products[0];
+        product.variant = calculateOffer?.variant;
+      }
+    });
+
     return res.status(200).json({ success: true, cart: updatedCart });
   } catch (error) {
     console.log(error);

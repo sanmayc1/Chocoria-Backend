@@ -8,7 +8,6 @@ const addOffer = async (req, res) => {
       offerTitle,
       applicableOn,
       percentage,
-      maximumDiscount,
       expiryDate,
       specific,
     } = req.body;
@@ -40,7 +39,6 @@ const addOffer = async (req, res) => {
         offerTitle: offerTitle.trim().toLowerCase(),
         applicableOn,
         percentage,
-        maximumDiscount,
         specificProduct: product._id,
         expiresAt: new Date(expiryDate),
       });
@@ -64,7 +62,6 @@ const addOffer = async (req, res) => {
         offerTitle: offerTitle.trim().toLowerCase(),
         applicableOn,
         percentage,
-        maximumDiscount,
         specificCategory: category._id,
         expiresAt: new Date(expiryDate),
       });
@@ -98,4 +95,35 @@ const getAllOffers = async (req, res) => {
   }
 };
 
-export { addOffer, getAllOffers };
+const deleteOffer = async (req, res) => {
+
+  try {
+     const { id } = req.params;
+     const offer = await Offer.findById(id);
+     if (!offer) {
+       return res
+         .status(404)
+         .json({ success: false, message: "Offer not found" });
+     }
+     
+      if (offer.applicableOn === "product") {
+        const product = await Product.findById(offer.specificProduct);
+        product.offer = null;
+        await product.save();
+      } else {
+        const category = await Category.findById(offer.specificCategory);
+        category.offer = null;
+        await category.save();
+      }
+      await Offer.findByIdAndDelete(id);
+     return  res
+        .status(200)
+        .json({ success: true, message: "Offer deleted successfully" });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal Server error" });
+  }
+}
+
+export { addOffer, getAllOffers ,deleteOffer};

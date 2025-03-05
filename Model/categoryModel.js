@@ -15,6 +15,10 @@ const categorySchema = new mongoose.Schema({
     ref: "Offer",
     default: null,
   },
+  buyCount: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const Category = mongoose.model("Category", categorySchema);

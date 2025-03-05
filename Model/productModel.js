@@ -45,6 +45,14 @@ const productSchema = new mongoose.Schema({
         type:Number,
         default:0
     },
+    buyCount:{
+        type:Number,
+        default:0
+    },
+    averageRating:{
+        type:Number,
+        default:0
+    },
     is_deleted:{
         type:Boolean,
         default:false

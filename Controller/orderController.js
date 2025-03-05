@@ -12,6 +12,7 @@ import Wallet from "../Model/walletModel.js";
 import WalletTransaction from "../Model/walletTransaction.js";
 import UsedCoupon from "../Model/usedCoupon.js";
 import Coupon from "../Model/couponModel.js";
+import Category from "../Model/categoryModel.js";
 
 // create order
 const createOrder = async (req, res) => {
@@ -51,6 +52,13 @@ const createOrder = async (req, res) => {
 
     const totalAmountAfterDiscount =
       totalAmountAfterOfferDiscount - couponDiscount;
+    if (paymentMethod === "COD" && totalAmountAfterDiscount > 1000) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "COD not available for orders above ₹1000. Please use another payment method.",
+      });
+    }
 
     if (paymentMethod === "razorpay") {
       paymentMethod = "Online";
@@ -228,7 +236,8 @@ const orderStatusUpdate = async (req, res) => {
   try {
     const { razorpayOrderId } = req.body;
 
-    console.log(req.body);
+    
+    
     const order = await Order.findOne({ razorpayOrderId: razorpayOrderId });
     const orderItems = await OrderItem.find({ orderId: order._id });
 
@@ -240,7 +249,7 @@ const orderStatusUpdate = async (req, res) => {
       })
     );
 
-    res.status(200).json({ success: true, message: "Order status updated" });
+    res.status(200).json({ success: true, message: "Order status updated", order });
   } catch (error) {
     console.log(error);
   }
@@ -284,6 +293,26 @@ const getOrderItemDetails = async (req, res) => {
   }
 };
 
+const getUserOrderDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const order = await Order.findOne({ _id: id })
+      .populate({
+        path: "items",
+        populate: {
+          path: "productId",
+          model: "Product",
+        },
+      })
+
+   return res.status(200).json({ success: true, order });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 // get all orders
 
 const getAllOrders = async (req, res) => {
@@ -314,7 +343,7 @@ const getAllOrders = async (req, res) => {
     const orderCancelRequests = await OrderCancelRequest.countDocuments({
       status: "pending",
     });
-    console.log(orders);
+   
 
     res.status(200).json({ success: true, orders, orderCancelRequests });
   } catch (error) {
@@ -353,6 +382,12 @@ const changeOrderStatus = async (req, res) => {
     if (status === "Delivered") {
       order.paymentStatus = "success";
       await order.save();
+      const product = await  Product.findById(order.productId);
+      const category = await Category.findById(product.category);
+      category.buyCount += order.quantity;
+      product.buyCount += order.quantity;
+      await product.save();
+      await category.save();
     }
 
     order.status = status;
@@ -449,6 +484,8 @@ const createOrderCancelRequest = async (req, res) => {
   }
 };
 
+// get cancel request by item id
+
 const getCancleRequestByItemId = async (req, res) => {
   try {
     const { id } = req.params;
@@ -462,6 +499,7 @@ const getCancleRequestByItemId = async (req, res) => {
   }
 };
 
+// get all cancel requests
 const getAllCancelRequests = async (req, res) => {
   try {
     const cancelRequests = await OrderCancelRequest.find({ status: "pending" })
@@ -473,6 +511,8 @@ const getAllCancelRequests = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+// update cancel request
 
 const cancelRequestUpdate = async (req, res) => {
   try {
@@ -552,43 +592,152 @@ const cancelRequestUpdate = async (req, res) => {
   }
 };
 
+// get all delivered orders
 const getAllDeliveredOrders = async (req, res) => {
   try {
-    // const orders = await OrderItem.find({ status: "Delivered" }).populate(
-    //   "orderId"
-    // )
     const orders = await OrderItem.aggregate([
       {
-        $match:{
-          status:"Delivered"
-        }
+        $match: {
+          status: "Delivered",
+        },
       },
       {
-        $lookup:{
-          from:"orders",
-          localField:"orderId",
-          foreignField:"_id",
-          as:"orderId"
-        }
+        $lookup: {
+          from: "orders",
+          localField: "orderId",
+          foreignField: "_id",
+          as: "orderId",
+        },
       },
 
       {
-        $unwind:"$orderId",    
+        $unwind: "$orderId",
       },
       {
-        $sort:{
-          "orderId.orderDate": -1
-        }
-      }
-      
-    ])
-    res.status(200).json({ success: true, orders , message: "All Delivered Orders" });
+        $sort: {
+          "orderId.orderDate": -1,
+        },
+      },
+    ]);
+    res
+      .status(200)
+      .json({ success: true, orders, message: "All Delivered Orders" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
-    
   }
-}
+};
+
+// total revenue
+const totalRevenue = async (req, res) => {
+  const { filter } = req.query;
+  
+
+ try {
+  let orderItems = await OrderItem.find({ status: "Delivered" }).populate(
+    "orderId"
+  );
+
+  if (filter === "yearly") {
+    let yearlyRevenue = {};
+
+    for (let item of orderItems) {
+      if (yearlyRevenue[item.orderId.orderDate.getFullYear()]) {
+        yearlyRevenue[item.orderId.orderDate.getFullYear()] +=
+          item.totalAmountAfterDiscount;
+      } else {
+        yearlyRevenue[item.orderId.orderDate.getFullYear()] =
+          item.totalAmountAfterDiscount;
+      }
+    }
+
+    yearlyRevenue = Object.keys(yearlyRevenue).map((key) => ({
+      filter: key,
+      revenue: yearlyRevenue[key],
+    }));
+
+    return res
+      .status(200)
+      .json({ success: true, message: "sucess", revenue: yearlyRevenue });
+  }
+
+  if (filter === "monthly") {
+    let monthlyRevenue = {};
+
+    const currentYear = new Date().getFullYear();
+
+    for (let item of orderItems) {
+      if (item.orderId.orderDate.getFullYear() !== currentYear) {
+        console.log(item.orderId.orderDate.getFullYear());
+        continue;
+      }
+      let month = item.orderId.orderDate.getMonth();
+      if (monthlyRevenue[month]) {
+        monthlyRevenue[month] += item.totalAmountAfterDiscount;
+      } else {
+        monthlyRevenue[month] = item.totalAmountAfterDiscount;
+      }
+    }
+
+    const months = {
+      0: "January",
+      1: "February",
+      2: "March",
+      3: "April",
+      4: "May",
+      5: "June",
+      6: "July",
+      7: "August",
+      8: "September",
+      9: "October",
+      10: "November",
+      11: "December",
+    };
+
+    monthlyRevenue = Object.keys(monthlyRevenue).map((key) => ({
+      filter: months[key],
+      revenue: monthlyRevenue[key],
+    }));
+
+    return res
+      .status(200)
+      .json({ success: true, message: "sucess", revenue: monthlyRevenue });
+  }
+
+  if (filter === "daily") {
+    let dailyRevenue = {};
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    for (let item of orderItems) {
+      if (
+        item.orderId.orderDate.getFullYear() !== currentYear ||
+        item.orderId.orderDate.getMonth() !== currentMonth
+      ) {
+        continue;
+      }
+      let day = item.orderId.orderDate.getDate();
+      if (dailyRevenue[day]) {
+        dailyRevenue[day] += item.totalAmountAfterDiscount;
+      } else {
+        dailyRevenue[day] = item.totalAmountAfterDiscount;
+      }
+    }
+
+    dailyRevenue = Object.keys(dailyRevenue).map((key) => ({
+      filter: key,
+      revenue: dailyRevenue[key],
+    }));
+
+    return res
+      .status(200)
+      .json({ success: true, message: "sucess", revenue: dailyRevenue });
+  }
+ } catch (error) {
+  console.log(error);
+  res.status(500).json({ success: false, message: "Internal server error" });
+ }
+};
 
 export {
   createOrder,
@@ -604,4 +753,6 @@ export {
   verifyRazorpayPayment,
   orderStatusUpdate,
   getAllDeliveredOrders,
+  totalRevenue,
+  getUserOrderDetails
 };

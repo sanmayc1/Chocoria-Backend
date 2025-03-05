@@ -6,6 +6,7 @@ import {
   getAllCancelRequests,
   getAllItemsByOrderId,
   getAllDeliveredOrders,
+  totalRevenue,
 } from "../../Controller/orderController.js";
 const adminOrderRoute = express.Router();
 
@@ -15,6 +16,7 @@ adminOrderRoute.get("/", getAllOrders);
 adminOrderRoute.patch("/:id", changeOrderStatus);
 adminOrderRoute.get("/cancel", getAllCancelRequests);
 adminOrderRoute.get("/delivered", getAllDeliveredOrders);
+adminOrderRoute.get("/revenue",totalRevenue);
 adminOrderRoute.get("/:id", getAllItemsByOrderId);
 adminOrderRoute.patch("/:id/cancel", cancelRequestUpdate);
 

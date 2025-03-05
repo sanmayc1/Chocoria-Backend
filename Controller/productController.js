@@ -4,6 +4,7 @@ import Variant from "../Model/variant.js";
 import mongoose from "mongoose";
 import path from "path";
 import offerCalculate from "../utils/offerCalculate.js";
+import OrderItem from "../Model/orderItemsModel.js";
 // add new product
 
 const addProduct = async (req, res) => {
@@ -106,6 +107,13 @@ const softDeleteProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
+
+    const existInOrder = await OrderItem.findOne({ productId: id });
+    if (existInOrder) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product is already in an order can't delete you can disable it" });
+    }
 
     const product = await Product.findById(id);
     if (!product) {
@@ -451,6 +459,24 @@ const getProductsUserSideListing = async (req, res) => {
   }
 };
 
+
+const topSellingProducts = async (req, res) => {
+  try {
+    let products = await Product.find({ is_deleted: false }).sort({ buyCount: -1 }).limit(10);
+
+    products = products.filter((product) => product.buyCount > 0);
+
+    res.status(200).json({
+      success: true,
+      message: "successfully fetched products",
+      products,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+}
+
 export {
   addProduct,
   getProducts,
@@ -461,4 +487,5 @@ export {
   editProduct,
   searchProducts,
   getProductsUserSideListing,
+  topSellingProducts,
 };

@@ -13,6 +13,7 @@ import {
   editCategory,
   getCategories,
   softDeleteCategory,
+  topSellingCategories,
 } from "../../Controller/categoryController.js";
 import { products } from "../../utils/multerStorage.js";
 import {
@@ -22,6 +23,7 @@ import {
   getProductDetailsAdmin,
   getProducts,
   softDeleteProduct,
+  topSellingProducts,
 } from "../../Controller/productController.js";
 import adminOrderRoute from "./orderRoutes.js";
 import AdmincouponRoute from "./couponRoute.js";
@@ -40,6 +42,8 @@ adminRoute.delete("/delete-user/:id", jwtVerify, verifyAdmin, deleteUser);
 adminRoute.post("/add-category", jwtVerify, verifyAdmin, addCategory);
 
 adminRoute.get("/category", jwtVerify, verifyAdmin, getCategories);
+
+adminRoute.get("/category/top-selling",jwtVerify,verifyAdmin,topSellingCategories)
 
 adminRoute.patch("/edit-category", jwtVerify, verifyAdmin, editCategory);
 
@@ -66,6 +70,7 @@ adminRoute.post(
 );
 
 adminRoute.get("/products", jwtVerify, verifyAdmin, getProducts);
+adminRoute.get("/products/top-selling",jwtVerify,verifyAdmin,topSellingProducts)
 
 adminRoute.patch(
   "/products/soft-delete",

@@ -120,10 +120,24 @@ const softDeleteCategory = async (req, res) => {
   }
 };
 
+const topSellingCategories = async (req, res) => {
+  try {
+    let categories = await Category.find({ is_deleted: false }).sort({
+      buyCount: -1,
+    });
+    categories = categories.filter((category) => category.buyCount > 0);
+    res.status(200).json({ success: true, categories });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 export {
   addCategory,
   getCategories,
   editCategory,
   deleteCategory,
   softDeleteCategory,
+  topSellingCategories,
 };

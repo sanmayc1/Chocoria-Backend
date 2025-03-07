@@ -9,7 +9,8 @@ const addtocart = async (req, res) => {
   try {
     const products = req.body;
     const { id } = req.user;
-
+   
+console.log(products,);
     if (products.quantity > 8) {
       return res.status(400).json({
         success: false,

@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import path from "path";
 import offerCalculate from "../utils/offerCalculate.js";
 import OrderItem from "../Model/orderItemsModel.js";
+import { populate } from "dotenv";
 // add new product
 
 const addProduct = async (req, res) => {
@@ -112,7 +113,11 @@ const deleteProduct = async (req, res) => {
     if (existInOrder) {
       return res
         .status(400)
-        .json({ success: false, message: "Product is already in an order can't delete you can disable it" });
+        .json({
+          success: false,
+          message:
+            "Product is already in an order can't delete you can disable it",
+        });
     }
 
     const product = await Product.findById(id);
@@ -189,16 +194,11 @@ const getProductDetailsUser = async (req, res) => {
         },
       })
       .lean();
-    const productsWithOfferApplied = offerCalculate([product])
-    const recomendation = await Product.find({
-      category: product.category._id,
-    }).populate("variants");
-
+    const productsWithOfferApplied = offerCalculate([product]);
     return res.status(200).json({
       success: true,
       message: "successfully fetched products",
       product: productsWithOfferApplied[0],
-      recomendation,
     });
   } catch (error) {
     console.log(error);
@@ -208,9 +208,10 @@ const getProductDetailsUser = async (req, res) => {
 
 // recommend products
 
-const recommend_Products = async (req, res) => {
+const recommendProducts = async (req, res) => {
   try {
     const { id } = req.params;
+
     const product = await Product.findById(id);
 
     if (!product) {
@@ -220,17 +221,40 @@ const recommend_Products = async (req, res) => {
     }
 
     const sameCategory = await Product.find({
-      category: product.category,
-    }).limit(3);
+      category: product.category._id,
+    })
+      .populate("variants")
+      .populate("offer")
+      .populate({
+        path: "category",
+        populate: {
+          path: "offer",
+        },
+      })
+      .limit(3)
+      .lean();
     const priceRange = await Product.find({
       price: { $gte: product.price - 100, $lte: product.price + 100 },
-    }).limit(3);
+    })
+      .populate("variants")
+      .populate("offer")
+      .populate({
+        path: "category",
+        populate: {
+          path: "offer",
+        },
+      })
+      .limit(3)
+      .lean();
     const recomendation = [...sameCategory, ...priceRange];
+
+    const productsWithOfferApplied = offerCalculate(recomendation);
+    
 
     return res.status(200).json({
       success: true,
       message: "successfully fetched products",
-      recomendation,
+      recommendation: productsWithOfferApplied,
     });
   } catch (error) {
     console.log(error);
@@ -366,18 +390,18 @@ const searchProducts = async (req, res) => {
         },
       },
       {
-      $lookup: {
-        from: "offers",
-        localField: "offer",
-        foreignField: "_id",
-        as: "offer",
-      },
+        $lookup: {
+          from: "offers",
+          localField: "offer",
+          foreignField: "_id",
+          as: "offer",
+        },
       },
       {
-       $unwind:{
-        path:"$offer",
-        preserveNullAndEmptyArrays:true
-       }
+        $unwind: {
+          path: "$offer",
+          preserveNullAndEmptyArrays: true,
+        },
       },
       {
         $set: {
@@ -459,10 +483,11 @@ const getProductsUserSideListing = async (req, res) => {
   }
 };
 
-
 const topSellingProducts = async (req, res) => {
   try {
-    let products = await Product.find({ is_deleted: false }).sort({ buyCount: -1 }).limit(10);
+    let products = await Product.find({ is_deleted: false })
+      .sort({ buyCount: -1 })
+      .limit(10);
 
     products = products.filter((product) => product.buyCount > 0);
 
@@ -475,7 +500,63 @@ const topSellingProducts = async (req, res) => {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
-}
+};
+
+const getPopularProductsUserSideListing = async (req, res) => {
+  try {
+    let products = await Product.find({ is_deleted: false })
+      .populate({
+        path: "category",
+        populate: {
+          path: "offer",
+        },
+      })
+      .populate("variants")
+      .populate("offer")
+      .sort({ popularity: -1 })
+      .limit(10)
+      .lean();
+
+    const productsWithOfferApplied = offerCalculate(products);
+
+    res.status(200).json({
+      success: true,
+      message: "successfully fetched products",
+      products: productsWithOfferApplied,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const trendingProducts = async (req, res) => {
+  try {
+    let products = await Product.find({ is_deleted: false })
+      .populate({
+        path: "category",
+        populate: {
+          path: "offer",
+        },
+      })
+      .populate("variants")
+      .populate("offer")
+      .sort({ buyCount: -1 })
+      .limit(10)
+      .lean();
+
+    const productsWithOfferApplied = offerCalculate(products);
+
+    res.status(200).json({
+      success: true,
+      message: "successfully fetched products",
+      products: productsWithOfferApplied,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
 
 export {
   addProduct,
@@ -488,4 +569,7 @@ export {
   searchProducts,
   getProductsUserSideListing,
   topSellingProducts,
+  getPopularProductsUserSideListing,
+  trendingProducts,
+  recommendProducts,
 };

@@ -176,7 +176,7 @@ const createOrder = async (req, res) => {
 const verifyRazorpayPayment = async (req, res) => {
   try {
     const { razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
-    console.log(req.body);
+
     const generatedSignature = crypto
       .createHmac("sha256", RAZORPAY_KEY_SECRET)
       .update(razorpayOrderId + "|" + razorpayPaymentId)
@@ -236,8 +236,6 @@ const orderStatusUpdate = async (req, res) => {
   try {
     const { razorpayOrderId } = req.body;
 
-    
-    
     const order = await Order.findOne({ razorpayOrderId: razorpayOrderId });
     const orderItems = await OrderItem.find({ orderId: order._id });
 
@@ -249,7 +247,9 @@ const orderStatusUpdate = async (req, res) => {
       })
     );
 
-    res.status(200).json({ success: true, message: "Order status updated", order });
+    res
+      .status(200)
+      .json({ success: true, message: "Order status updated", order });
   } catch (error) {
     console.log(error);
   }
@@ -296,20 +296,21 @@ const getOrderItemDetails = async (req, res) => {
 const getUserOrderDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const order = await Order.findOne({ _id: id })
-      .populate({
-        path: "items",
-        populate: {
-          path: "productId",
-          model: "Product",
-        },
-      })
 
-   return res.status(200).json({ success: true, order });
+    const order = await Order.findOne({ _id: id }).populate({
+      path: "items",
+      populate: {
+        path: "productId",
+        model: "Product",
+      },
+    });
+
+    return res.status(200).json({ success: true, order });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ success: false, message: "Internal server error" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -343,7 +344,6 @@ const getAllOrders = async (req, res) => {
     const orderCancelRequests = await OrderCancelRequest.countDocuments({
       status: "pending",
     });
-   
 
     res.status(200).json({ success: true, orders, orderCancelRequests });
   } catch (error) {
@@ -382,7 +382,7 @@ const changeOrderStatus = async (req, res) => {
     if (status === "Delivered") {
       order.paymentStatus = "success";
       await order.save();
-      const product = await  Product.findById(order.productId);
+      const product = await Product.findById(order.productId);
       const category = await Category.findById(product.category);
       category.buyCount += order.quantity;
       product.buyCount += order.quantity;
@@ -631,112 +631,186 @@ const getAllDeliveredOrders = async (req, res) => {
 // total revenue
 const totalRevenue = async (req, res) => {
   const { filter } = req.query;
-  
 
- try {
-  let orderItems = await OrderItem.find({ status: "Delivered" }).populate(
-    "orderId"
-  );
+  try {
+    let orderItems = await OrderItem.find({ status: "Delivered" }).populate(
+      "orderId"
+    );
 
-  if (filter === "yearly") {
-    let yearlyRevenue = {};
+    if (filter === "yearly") {
+      let yearlyRevenue = {};
 
-    for (let item of orderItems) {
-      if (yearlyRevenue[item.orderId.orderDate.getFullYear()]) {
-        yearlyRevenue[item.orderId.orderDate.getFullYear()] +=
-          item.totalAmountAfterDiscount;
-      } else {
-        yearlyRevenue[item.orderId.orderDate.getFullYear()] =
-          item.totalAmountAfterDiscount;
+      for (let item of orderItems) {
+        if (yearlyRevenue[item.orderId.orderDate.getFullYear()]) {
+          yearlyRevenue[item.orderId.orderDate.getFullYear()] +=
+            item.totalAmountAfterDiscount;
+        } else {
+          yearlyRevenue[item.orderId.orderDate.getFullYear()] =
+            item.totalAmountAfterDiscount;
+        }
       }
+
+      yearlyRevenue = Object.keys(yearlyRevenue).map((key) => ({
+        filter: key,
+        revenue: yearlyRevenue[key],
+      }));
+
+      return res
+        .status(200)
+        .json({ success: true, message: "sucess", revenue: yearlyRevenue });
     }
 
-    yearlyRevenue = Object.keys(yearlyRevenue).map((key) => ({
-      filter: key,
-      revenue: yearlyRevenue[key],
-    }));
+    if (filter === "monthly") {
+      let monthlyRevenue = {};
 
-    return res
-      .status(200)
-      .json({ success: true, message: "sucess", revenue: yearlyRevenue });
-  }
+      const currentYear = new Date().getFullYear();
 
-  if (filter === "monthly") {
-    let monthlyRevenue = {};
-
-    const currentYear = new Date().getFullYear();
-
-    for (let item of orderItems) {
-      if (item.orderId.orderDate.getFullYear() !== currentYear) {
-        console.log(item.orderId.orderDate.getFullYear());
-        continue;
+      for (let item of orderItems) {
+        if (item.orderId.orderDate.getFullYear() !== currentYear) {
+          console.log(item.orderId.orderDate.getFullYear());
+          continue;
+        }
+        let month = item.orderId.orderDate.getMonth();
+        if (monthlyRevenue[month]) {
+          monthlyRevenue[month] += item.totalAmountAfterDiscount;
+        } else {
+          monthlyRevenue[month] = item.totalAmountAfterDiscount;
+        }
       }
-      let month = item.orderId.orderDate.getMonth();
-      if (monthlyRevenue[month]) {
-        monthlyRevenue[month] += item.totalAmountAfterDiscount;
-      } else {
-        monthlyRevenue[month] = item.totalAmountAfterDiscount;
-      }
+
+      const months = {
+        0: "January",
+        1: "February",
+        2: "March",
+        3: "April",
+        4: "May",
+        5: "June",
+        6: "July",
+        7: "August",
+        8: "September",
+        9: "October",
+        10: "November",
+        11: "December",
+      };
+
+      monthlyRevenue = Object.keys(monthlyRevenue).map((key) => ({
+        filter: months[key],
+        revenue: monthlyRevenue[key],
+      }));
+
+      return res
+        .status(200)
+        .json({ success: true, message: "sucess", revenue: monthlyRevenue });
     }
 
-    const months = {
-      0: "January",
-      1: "February",
-      2: "March",
-      3: "April",
-      4: "May",
-      5: "June",
-      6: "July",
-      7: "August",
-      8: "September",
-      9: "October",
-      10: "November",
-      11: "December",
-    };
+    if (filter === "daily") {
+      let dailyRevenue = {};
 
-    monthlyRevenue = Object.keys(monthlyRevenue).map((key) => ({
-      filter: months[key],
-      revenue: monthlyRevenue[key],
-    }));
-
-    return res
-      .status(200)
-      .json({ success: true, message: "sucess", revenue: monthlyRevenue });
-  }
-
-  if (filter === "daily") {
-    let dailyRevenue = {};
-
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth();
-    for (let item of orderItems) {
-      if (
-        item.orderId.orderDate.getFullYear() !== currentYear ||
-        item.orderId.orderDate.getMonth() !== currentMonth
-      ) {
-        continue;
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth();
+      for (let item of orderItems) {
+        if (
+          item.orderId.orderDate.getFullYear() !== currentYear ||
+          item.orderId.orderDate.getMonth() !== currentMonth
+        ) {
+          continue;
+        }
+        let day = item.orderId.orderDate.getDate();
+        if (dailyRevenue[day]) {
+          dailyRevenue[day] += item.totalAmountAfterDiscount;
+        } else {
+          dailyRevenue[day] = item.totalAmountAfterDiscount;
+        }
       }
-      let day = item.orderId.orderDate.getDate();
-      if (dailyRevenue[day]) {
-        dailyRevenue[day] += item.totalAmountAfterDiscount;
-      } else {
-        dailyRevenue[day] = item.totalAmountAfterDiscount;
-      }
+
+      dailyRevenue = Object.keys(dailyRevenue).map((key) => ({
+        filter: key,
+        revenue: dailyRevenue[key],
+      }));
+
+      return res
+        .status(200)
+        .json({ success: true, message: "sucess", revenue: dailyRevenue });
     }
-
-    dailyRevenue = Object.keys(dailyRevenue).map((key) => ({
-      filter: key,
-      revenue: dailyRevenue[key],
-    }));
-
-    return res
-      .status(200)
-      .json({ success: true, message: "sucess", revenue: dailyRevenue });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
- } catch (error) {
-  console.log(error);
-  res.status(500).json({ success: false, message: "Internal server error" });
- }
+};
+
+const createRazorpayOrder = async (req, res) => {
+  const { totalAmountAfterDiscount, orderItemId } = req.body;
+
+  const orderItem = await OrderItem.findById(orderItemId);
+  console.log(orderItem);
+  if (!orderItem) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Order item not found" });
+  }
+
+  const razorpay = new Razorpay({
+    key_id: RAZORPAY_KEY_ID,
+    key_secret: RAZORPAY_KEY_SECRET,
+  });
+  const options = {
+    amount: totalAmountAfterDiscount * 100,
+    currency: "INR",
+    receipt: `receipt${Date.now()}`,
+  };
+  const order = await razorpay.orders.create(options);
+
+  if (!order) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Something went wrong" });
+  }
+  orderItem.razorpayOrderId = order.id;
+  orderItem.save();
+  return res.status(200).json({ success: true, order });
+};
+
+const verifyRetryPayment = async (req, res) => {
+  const { razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
+
+  const generatedSignature = crypto
+    .createHmac("sha256", RAZORPAY_KEY_SECRET)
+    .update(razorpayOrderId + "|" + razorpayPaymentId)
+    .digest("hex");
+ 
+
+  if (generatedSignature !== razorpaySignature) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid signature" });
+  }
+  const orderItem = await OrderItem.findOne({ razorpayOrderId }).populate("orderId");
+  orderItem.razorpayPaymentId = razorpayPaymentId;
+  orderItem.paymentStatus = "success";
+  orderItem.status = "Pending";
+  orderItem.save();
+
+  if (orderItem.orderId.coupon) {
+    const couponUse = await UsedCoupon.findOne({
+      couponCode: orderItem.orderId.coupon._id,
+      userId: orderItem.orderId.userId,
+    });
+    if (!couponUse) {
+      const newUsedCoupon = new UsedCoupon({
+        couponCode: orderItem.orderId.coupon._id,
+        userId: orderItem.orderId.userId,
+        usageCount: 1,
+      });
+      await newUsedCoupon.save();
+    } else {
+      couponUse.usageCount += 1;
+      await couponUse.save();
+    }
+  }
+
+  return res
+    .status(200)
+    .json({ success: true, message: "Payment successful",orderItem });
 };
 
 export {
@@ -754,5 +828,7 @@ export {
   orderStatusUpdate,
   getAllDeliveredOrders,
   totalRevenue,
-  getUserOrderDetails
+  getUserOrderDetails,
+  createRazorpayOrder,
+  verifyRetryPayment,
 };

@@ -21,6 +21,8 @@ const OrderItemSchema = new mongoose.Schema({
   offer: { type: Object, default: null },
   totalPrice: { type: Number, required: true },
   totalAmountAfterDiscount: { type: Number, required: true },
+  razorpayOrderId: { type: String, default: null },
+  razorpayPaymentId: { type: String, default: null },
   status: {
     type: String,
     enum: ["Pending", "Shipped", "Delivered", "Cancelled", "Order Not Placed"],

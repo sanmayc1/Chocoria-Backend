@@ -8,7 +8,6 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { Server } from "socket.io";
 import { createServer } from "http";
-import decodeJwt from "./utils/decodeJwt.js";
 import socketHandler from "./config/Socket/socketHandler.js";
 
 const app = express();
@@ -37,7 +36,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cookieParser());
-app.use("/img", express.static(path.join(process.cwd(), "img/products")));
+app.use("/img", express.static(path.join(process.cwd(), "img")));
 
 //MongoDb connect
 connectMongose();

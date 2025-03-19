@@ -28,6 +28,7 @@ import {
 import adminOrderRoute from "./orderRoutes.js";
 import AdmincouponRoute from "./couponRoute.js";
 import { addOffer, deleteOffer, getAllOffers } from "../../Controller/offerController.js";
+import brandRoute from "./brand.js";
 
 const adminRoute = Router();
 
@@ -96,7 +97,7 @@ adminRoute.delete("/offer/:id", jwtVerify, verifyAdmin, deleteOffer);
 adminRoute.get("/offers", jwtVerify, verifyAdmin, getAllOffers);
 
 adminRoute.use("/orders", jwtVerify, verifyAdmin, adminOrderRoute);
-
+adminRoute.use("/brand",jwtVerify,verifyAdmin,brandRoute)
 adminRoute.use("/coupon", jwtVerify, verifyAdmin, AdmincouponRoute);
 
 

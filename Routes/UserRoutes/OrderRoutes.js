@@ -1,12 +1,11 @@
 import express from "express"
-import {createOrder, createOrderCancelRequest,createRazorpayOrder,getAllOrderOfUser,getCancleRequestByItemId,getOrderItemDetails, getUserOrderDetails, orderStatusUpdate, verifyRazorpayPayment, verifyRetryPayment  } from "../../Controller/orderController.js"
+import {createOrder, createOrderCancelRequest,createRazorpayOrder,getAllOrderOfUser,getCancleRequestByItemId,getOrderItemDetails, getUserOrderDetails, orderReturn, orderStatusUpdate, verifyRazorpayPayment, verifyRetryPayment  } from "../../Controller/orderController.js"
 const orderRoute = express.Router()
 
 orderRoute.post("/",createOrder)
-
 orderRoute.get("/",getAllOrderOfUser)
-
 orderRoute.get("/:id/cancel",getCancleRequestByItemId)
+orderRoute.post("/return",orderReturn)
 orderRoute.patch("/status",orderStatusUpdate)
 orderRoute.post("/:id/cancel",createOrderCancelRequest)
 orderRoute.post("/razorpay",createRazorpayOrder)

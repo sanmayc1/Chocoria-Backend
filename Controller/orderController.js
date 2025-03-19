@@ -13,6 +13,7 @@ import WalletTransaction from "../Model/walletTransaction.js";
 import UsedCoupon from "../Model/usedCoupon.js";
 import Coupon from "../Model/couponModel.js";
 import Category from "../Model/categoryModel.js";
+import orderReturnRequest from "../Model/orderReturn.js";
 
 // create order
 const createOrder = async (req, res) => {
@@ -329,9 +330,7 @@ const getAllOrders = async (req, res) => {
       },
       {
         $match: {
-          "items.paymentStatus": {
-            $ne: "failed",
-          },
+          items: { $elemMatch: { paymentStatus: { $ne: "failed" } } },
         },
       },
 
@@ -771,46 +770,81 @@ const createRazorpayOrder = async (req, res) => {
 };
 
 const verifyRetryPayment = async (req, res) => {
-  const { razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
+  try {
+    const { razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
 
-  const generatedSignature = crypto
-    .createHmac("sha256", RAZORPAY_KEY_SECRET)
-    .update(razorpayOrderId + "|" + razorpayPaymentId)
-    .digest("hex");
- 
+    const generatedSignature = crypto
+      .createHmac("sha256", RAZORPAY_KEY_SECRET)
+      .update(razorpayOrderId + "|" + razorpayPaymentId)
+      .digest("hex");
 
-  if (generatedSignature !== razorpaySignature) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid signature" });
-  }
-  const orderItem = await OrderItem.findOne({ razorpayOrderId }).populate("orderId");
-  orderItem.razorpayPaymentId = razorpayPaymentId;
-  orderItem.paymentStatus = "success";
-  orderItem.status = "Pending";
-  orderItem.save();
+    if (generatedSignature !== razorpaySignature) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid signature" });
+    }
+    const orderItem = await OrderItem.findOne({ razorpayOrderId }).populate(
+      "orderId"
+    );
+    orderItem.razorpayPaymentId = razorpayPaymentId;
+    orderItem.paymentStatus = "success";
+    orderItem.status = "Pending";
+    orderItem.save();
 
-  if (orderItem.orderId.coupon) {
-    const couponUse = await UsedCoupon.findOne({
-      couponCode: orderItem.orderId.coupon._id,
-      userId: orderItem.orderId.userId,
-    });
-    if (!couponUse) {
-      const newUsedCoupon = new UsedCoupon({
+    if (orderItem.orderId.coupon) {
+      const couponUse = await UsedCoupon.findOne({
         couponCode: orderItem.orderId.coupon._id,
         userId: orderItem.orderId.userId,
-        usageCount: 1,
       });
-      await newUsedCoupon.save();
-    } else {
-      couponUse.usageCount += 1;
-      await couponUse.save();
+      if (!couponUse) {
+        const newUsedCoupon = new UsedCoupon({
+          couponCode: orderItem.orderId.coupon._id,
+          userId: orderItem.orderId.userId,
+          usageCount: 1,
+        });
+        await newUsedCoupon.save();
+      } else {
+        couponUse.usageCount += 1;
+        await couponUse.save();
+      }
     }
-  }
 
-  return res
-    .status(200)
-    .json({ success: true, message: "Payment successful",orderItem });
+    return res
+      .status(200)
+      .json({ success: true, message: "Payment successful", orderItem });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const orderReturn = async (req, res) => {
+  try {
+    const { orderItemId, reason, explanation } = req.body;
+    const orderItem = await OrderItem.findById(orderItemId);
+    const {id:userId} = req.user
+
+    if (!orderItem) {
+      return res
+        .status(409)
+        .json({ success: false, message: "No order found" });
+    }
+    const newReturnRequest = new orderReturnRequest({
+      orderId:orderItem.orderId,
+      userId,
+      orderItem: orderItem._id,
+      reason,
+      explanation,
+    });
+   await newReturnRequest.save()
+   console.log("sdf");
+   
+   res.status(200).json({success:true,message:"Request Sent Successfully"})
+    
+  } catch (error) {
+    console.log(error);
+    
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
 };
 
 export {
@@ -831,4 +865,5 @@ export {
   getUserOrderDetails,
   createRazorpayOrder,
   verifyRetryPayment,
+  orderReturn,
 };

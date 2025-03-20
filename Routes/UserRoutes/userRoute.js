@@ -23,6 +23,7 @@ import { getCategories } from "../../Controller/categoryController.js";
 import wishlistRoute from "./wishlistRoute.js";
 import { getWalletByUserId } from "../../Controller/walletController.js";
 import userCouponRoute from "./couponRoutes.js";
+import userBrandRoute from "./brand.js";
 
 const userRoute = Router();
 
@@ -43,9 +44,11 @@ userRoute.get("/categories", getCategories);
 userRoute.get("/wallet",jwtVerify, getWalletByUserId);
 
 userRoute.use("/products", productRoute);
+userRoute.use("/brand",userBrandRoute)
 userRoute.use("/address", jwtVerify, addressRoute);
 userRoute.use("/cart", jwtVerify, cartRoute);
 userRoute.use("/order",jwtVerify, orderRoute);
 userRoute.use("/wishlist",jwtVerify, wishlistRoute)
 userRoute.use("/coupon",jwtVerify, userCouponRoute)
+
 export default userRoute;

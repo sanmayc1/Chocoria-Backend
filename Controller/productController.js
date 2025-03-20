@@ -13,7 +13,7 @@ const addProduct = async (req, res) => {
     const { name, brand, category, description, ingredients } = req.body;
     const variants = JSON.parse(req.body.variants);
 
-    const images = req.files.map((file) => `/img/${file.filename}`);
+    const images = req.files.map((file) => `/img/products/${file.filename}`);
 
     const newProduct = new Product({
       name,
@@ -193,6 +193,7 @@ const getProductDetailsUser = async (req, res) => {
           path: "offer",
         },
       })
+      .populate("brand")
       .lean();
     const productsWithOfferApplied = offerCalculate([product]);
     return res.status(200).json({
@@ -266,7 +267,7 @@ const recommendProducts = async (req, res) => {
 const editProduct = async (req, res) => {
   try {
     const { name, brand, category, description, ingredients } = req.body;
-    const images = req.files.map((file) => `/img/${file.filename}`);
+    const images = req.files.map((file) => `/img/products/${file.filename}`);
     const { id } = req.params;
     const variants = JSON.parse(req.body.variants);
     const product = await Product.findById(id);
@@ -340,7 +341,8 @@ const editProduct = async (req, res) => {
 
 const searchProducts = async (req, res) => {
   try {
-    const { searchQuery, sortBy, rating, category } = req.query;
+    const { searchQuery, sortBy, rating, category,brand } = req.query;
+   
 
     const query = decodeURIComponent(searchQuery);
     const filter = {};
@@ -359,6 +361,10 @@ const searchProducts = async (req, res) => {
     //     $gte: rating
     //   }
     // }
+
+    if(brand){
+      filter.brand = new mongoose.Types.ObjectId(`${brand}`);
+    }
 
     const sortOptions = {};
 

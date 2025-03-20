@@ -1,4 +1,5 @@
 import Brand from "../Model/brand.js";
+import Product from "../Model/productModel.js";
 
 const createBrand = async (req, res) => {
   try {
@@ -54,6 +55,12 @@ const deleteBrand  = async (req,res)=>{
         if(!brand){
             res.status(400).json({success:false,message:"No brand found"})
             return
+        }
+        const existProduct = await Product.findOne({brand:id})
+
+        if(existProduct){
+          res.status(409).json({success:false,message:"Can't delete this brand have products"})
+          return
         }
         await Brand.findByIdAndDelete(id)
         res.status(200).json({success:true,message:"Brand Deleted Successfully"})

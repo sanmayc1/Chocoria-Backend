@@ -11,7 +11,6 @@ import User from "../Model/userModel.js";
 import Wallet from "../Model/walletModel.js";
 import WalletTransaction from "../Model/walletTransaction.js";
 import UsedCoupon from "../Model/usedCoupon.js";
-import Coupon from "../Model/couponModel.js";
 import Category from "../Model/categoryModel.js";
 import orderReturnRequest from "../Model/orderReturn.js";
 
@@ -182,7 +181,7 @@ const verifyRazorpayPayment = async (req, res) => {
       .createHmac("sha256", RAZORPAY_KEY_SECRET)
       .update(razorpayOrderId + "|" + razorpayPaymentId)
       .digest("hex");
-    console.log(generatedSignature === razorpaySignature);
+    
 
     if (generatedSignature !== razorpaySignature) {
       return res
@@ -265,7 +264,6 @@ const getAllOrderOfUser = async (req, res) => {
         path: "items",
         populate: {
           path: "productId",
-          model: "Product",
         },
       })
       .sort({ orderDate: -1 });
@@ -282,9 +280,12 @@ const getOrderItemDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const orderItem = await OrderItem.findOne({ _id: id }).populate(
-      "productId"
-    );
+    const orderItem = await OrderItem.findOne({ _id: id }).populate({
+      path: "productId",
+      populate: {
+        path: "brand",
+      },
+    });
     const order = await Order.findOne({ _id: orderItem.orderId });
 
     res.status(200).json({ success: true, orderItem, order });
@@ -344,7 +345,13 @@ const getAllOrders = async (req, res) => {
       status: "pending",
     });
 
-    res.status(200).json({ success: true, orders, orderCancelRequests });
+    const returnRequests = await orderReturnRequest.countDocuments({
+      status: "pending",
+    });
+
+    res
+      .status(200)
+      .json({ success: true, orders, orderCancelRequests, returnRequests });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -372,11 +379,51 @@ const changeOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const order = await OrderItem.findOne({ _id: id });
+    const order = await OrderItem.findOne({ _id: id }).populate("orderId");
     if (status === "Cancelled") {
       const variant = await Variant.findById(order.variant._id);
       variant.quantity += order.quantity;
       await variant.save();
+      if (order.orderId.paymentMethod === "Online") {
+        const wallet = await Wallet.findOne({ userId: order.orderId.userId });
+        const transactionId = `TXN${Date.now()}${Math.floor(
+          1000 + Math.random() * 9000
+        )}`;
+        if (!wallet) {
+          const newWallet = new Wallet({
+            userId: order.orderId.userId,
+            balance: 0,
+            transactions: [],
+          });
+          const savedWallet = await newWallet.save();
+
+          const newTransaction = new WalletTransaction({
+            walletId: savedWallet._id,
+            transactionId,
+            type: "credit",
+            amount: order.totalAmountAfterDiscount,
+            status: "success",
+          });
+          await newTransaction.save();
+
+          savedWallet.transactions.push(newTransaction._id);
+          savedWallet.balance += order.totalAmountAfterDiscount;
+          await savedWallet.save();
+        } else {
+          const newTransaction = new WalletTransaction({
+            walletId: wallet._id,
+            transactionId,
+            type: "credit",
+            amount: order.totalAmountAfterDiscount,
+            status: "success",
+          });
+          await newTransaction.save();
+          wallet.transactions.push(newTransaction._id);
+          wallet.balance += order.totalAmountAfterDiscount;
+          await wallet.save();
+        }
+        order.paymentStatus = "refunded";
+      }
     }
     if (status === "Delivered") {
       order.paymentStatus = "success";
@@ -498,6 +545,23 @@ const getCancleRequestByItemId = async (req, res) => {
   }
 };
 
+// get return request
+
+const getReturnRequestByItemId = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const returnRequest = await orderReturnRequest.findOne({
+      orderItem: id,
+    });
+
+    res.status(200).json({ success: true, returnRequest });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 // get all cancel requests
 const getAllCancelRequests = async (req, res) => {
   try {
@@ -505,6 +569,21 @@ const getAllCancelRequests = async (req, res) => {
       .populate("orderItem")
       .populate("orderId");
     res.status(200).json({ success: true, cancelRequests });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// get all return request
+
+const getAllReturnRequests = async (req, res) => {
+  try {
+    const returnRequests = await orderReturnRequest
+      .find({ status: "pending" })
+      .populate("orderItem")
+      .populate("orderId");
+    res.status(200).json({ success: true, returnRequests });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -569,17 +648,84 @@ const cancelRequestUpdate = async (req, res) => {
       }
       await orderItem.save();
 
-      const product = await Product.findById(orderItem.productId);
-      product.variants = product.variants.map((variant) => {
-        if (variant.id === orderItem.variant.id) {
-          return {
-            ...variant,
-            quantity: variant.quantity + orderItem.quantity,
-          };
-        }
-        return variant;
+      const productVariant = await Variant.findById(orderItem.variant._id)
+      productVariant.quantity += orderItem.quantity 
+      productVariant.save()
+
+    }
+
+    res
+      .status(200)
+      .json({ success: true, message: "Request updated successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// return request update
+
+const returnRequestUpdate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, response } = req.body;
+    const returnRequest = await orderReturnRequest.findOne({ _id: id });
+    returnRequest.status = status;
+    returnRequest.response = response;
+    await returnRequest.save();
+    if (status === "approved") {
+      const orderItem = await OrderItem.findOne({
+        _id: returnRequest.orderItem,
       });
-      await product.save();
+      orderItem.status = "Return";
+      if (orderItem.paymentStatus === "success" && status === "approved") {
+        const wallet = await Wallet.findOne({ userId: returnRequest.userId });
+        if (!wallet) {
+          const newWallet = new Wallet({
+            userId: returnRequest.userId,
+            balance: 0,
+            transactions: [],
+          });
+          const savedWallet = await newWallet.save();
+          const transactionId = `TXN${Date.now()}${Math.floor(
+            1000 + Math.random() * 9000
+          )}`;
+          const newTransaction = new WalletTransaction({
+            walletId: savedWallet._id,
+            transactionId,
+            type: "credit",
+            amount: orderItem.totalAmountAfterDiscount,
+            status: "success",
+          });
+          await newTransaction.save();
+          savedWallet.transactions.push(newTransaction._id);
+          savedWallet.balance += newTransaction.amount;
+          await savedWallet.save();
+        } else {
+          const transactionId = `TXN${Date.now()}${Math.floor(
+            1000 + Math.random() * 9000
+          )}`;
+          const newTransaction = new WalletTransaction({
+            walletId: wallet._id,
+            transactionId,
+            type: "credit",
+            amount: orderItem.totalAmountAfterDiscount,
+            status: "success",
+          });
+          await newTransaction.save();
+          wallet.transactions.push(newTransaction._id);
+          wallet.balance += newTransaction.amount;
+          await wallet.save();
+        }
+        orderItem.paymentStatus = "refunded";
+      }
+      await orderItem.save();
+
+  
+      const productVariant = await Variant.findById(orderItem.variant._id)
+      productVariant.quantity += orderItem.quantity 
+      productVariant.save()
+     
     }
 
     res
@@ -666,7 +812,7 @@ const totalRevenue = async (req, res) => {
 
       for (let item of orderItems) {
         if (item.orderId.orderDate.getFullYear() !== currentYear) {
-          console.log(item.orderId.orderDate.getFullYear());
+          
           continue;
         }
         let month = item.orderId.orderDate.getMonth();
@@ -821,7 +967,7 @@ const orderReturn = async (req, res) => {
   try {
     const { orderItemId, reason, explanation } = req.body;
     const orderItem = await OrderItem.findById(orderItemId);
-    const {id:userId} = req.user
+    const { id: userId } = req.user;
 
     if (!orderItem) {
       return res
@@ -829,20 +975,20 @@ const orderReturn = async (req, res) => {
         .json({ success: false, message: "No order found" });
     }
     const newReturnRequest = new orderReturnRequest({
-      orderId:orderItem.orderId,
+      orderId: orderItem.orderId,
       userId,
       orderItem: orderItem._id,
       reason,
       explanation,
     });
-   await newReturnRequest.save()
-   console.log("sdf");
-   
-   res.status(200).json({success:true,message:"Request Sent Successfully"})
-    
+    await newReturnRequest.save();
+
+    res
+      .status(200)
+      .json({ success: true, message: "Request Sent Successfully" });
   } catch (error) {
     console.log(error);
-    
+
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
@@ -866,4 +1012,7 @@ export {
   createRazorpayOrder,
   verifyRetryPayment,
   orderReturn,
+  getReturnRequestByItemId,
+  getAllReturnRequests,
+  returnRequestUpdate,
 };

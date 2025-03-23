@@ -1,7 +1,5 @@
 import mongoose from "mongoose";
 
-
-
 const AddressSchema = new mongoose.Schema({
   name: { type: String, required: true },
   phone: { type: String, required: true },
@@ -9,6 +7,10 @@ const AddressSchema = new mongoose.Schema({
   city: { type: String, required: true },
   state: { type: String, required: true },
   landmark: { type: String },
+  default:{
+    type:Boolean,
+    default:false
+  },
   detailed_address: { type: String, required: true },
   address_type: { type: String, enum: ["Home", "Office"], required: true }
 });

@@ -137,6 +137,7 @@ const updateUserProfile = async (req, res) => {
 const addNewAddress = async (req, res) => {
   try {
     const { id } = req.user;
+    const data = req.body
 
     const user = await User.findById(id);
     if (!user) {
@@ -145,7 +146,11 @@ const addNewAddress = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
-    user.address.push(req.body);
+    if(user.address.length === 0){
+       data.default = true
+    }
+
+    user.address.push(data);
     await user.save();
 
     res.status(200).json({ success: true, message: "Updated successfully" });
@@ -154,6 +159,37 @@ const addNewAddress = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+//set default address 
+
+const setDefaultAddress = async(req,res)=>{
+  try {
+    const {id} = req.user
+    const {id:addressId}  = req.params
+    const user = await User.findById(id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    user.address = user.address.map((addres)=>{
+      
+      if(addres._id.toString() === addressId){
+        addres.default = true
+      }else{
+        addres.default =false
+      }
+      return addres
+    })
+
+    await user.save()
+    res.status(200).json({ success: true, message: "Changed Default address" });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+}
 
 // get all user address
 
@@ -323,4 +359,5 @@ export {
   getAddressById,
   forgetPassword,
   resetPassword,
+  setDefaultAddress
 };

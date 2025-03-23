@@ -24,6 +24,7 @@ import wishlistRoute from "./wishlistRoute.js";
 import { getWalletByUserId } from "../../Controller/walletController.js";
 import userCouponRoute from "./couponRoutes.js";
 import userBrandRoute from "./brand.js";
+import { getAllReviews } from "../../Controller/orderController.js";
 
 const userRoute = Router();
 
@@ -42,6 +43,8 @@ userRoute.patch("/update-profile", jwtVerify, updateUserProfile);
 
 userRoute.get("/categories", getCategories);
 userRoute.get("/wallet",jwtVerify, getWalletByUserId);
+
+userRoute.get("/order/:id/reviews",getAllReviews)
 
 userRoute.use("/products", productRoute);
 userRoute.use("/brand",userBrandRoute)

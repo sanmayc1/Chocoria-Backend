@@ -13,6 +13,8 @@ import WalletTransaction from "../Model/walletTransaction.js";
 import UsedCoupon from "../Model/usedCoupon.js";
 import Category from "../Model/categoryModel.js";
 import orderReturnRequest from "../Model/orderReturn.js";
+import Review from "../Model/ReviewModel.js";
+import mongoose from "mongoose";
 
 // create order
 const createOrder = async (req, res) => {
@@ -181,7 +183,6 @@ const verifyRazorpayPayment = async (req, res) => {
       .createHmac("sha256", RAZORPAY_KEY_SECRET)
       .update(razorpayOrderId + "|" + razorpayPaymentId)
       .digest("hex");
-    
 
     if (generatedSignature !== razorpaySignature) {
       return res
@@ -287,8 +288,9 @@ const getOrderItemDetails = async (req, res) => {
       },
     });
     const order = await Order.findOne({ _id: orderItem.orderId });
+    const review = await Review.findOne({ orderItemId: id });
 
-    res.status(200).json({ success: true, orderItem, order });
+    res.status(200).json({ success: true, orderItem, order, review });
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -648,10 +650,9 @@ const cancelRequestUpdate = async (req, res) => {
       }
       await orderItem.save();
 
-      const productVariant = await Variant.findById(orderItem.variant._id)
-      productVariant.quantity += orderItem.quantity 
-      productVariant.save()
-
+      const productVariant = await Variant.findById(orderItem.variant._id);
+      productVariant.quantity += orderItem.quantity;
+      productVariant.save();
     }
 
     res
@@ -721,11 +722,9 @@ const returnRequestUpdate = async (req, res) => {
       }
       await orderItem.save();
 
-  
-      const productVariant = await Variant.findById(orderItem.variant._id)
-      productVariant.quantity += orderItem.quantity 
-      productVariant.save()
-     
+      const productVariant = await Variant.findById(orderItem.variant._id);
+      productVariant.quantity += orderItem.quantity;
+      productVariant.save();
     }
 
     res
@@ -812,7 +811,6 @@ const totalRevenue = async (req, res) => {
 
       for (let item of orderItems) {
         if (item.orderId.orderDate.getFullYear() !== currentYear) {
-          
           continue;
         }
         let month = item.orderId.orderDate.getMonth();
@@ -993,6 +991,61 @@ const orderReturn = async (req, res) => {
   }
 };
 
+const orderReview = async (req, res) => {
+  try {
+    const { review, rating, productId, userId, orderItemId } = req.body;
+    const product = await Product.findById(productId);
+
+    if (!review.trim() && !rating) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please give rating and review" });
+    }
+
+    const newReview = await Review.create({
+      review,
+      rating,
+      productId,
+      userId,
+      orderItemId,
+    });
+
+    const id = new mongoose.Types.ObjectId(`${productId}`);
+    const averageRating = await Review.aggregate([
+      {
+        $match: { productId: id },
+      },
+      {
+        $group: {
+          _id: null,
+          average: { $avg: "$rating" },
+        },
+      },
+    ]);
+
+    product.averageRating = parseFloat(averageRating[0].average.toFixed(1));
+    await product.save();
+
+    res.status(200).json({ success: true, message: "Review Sumbimited" });
+  } catch (error) {}
+};
+
+const getAllReviews = async (req, res) => {
+  try {
+    const { id } = req.params;
+  
+    const reviews = await Review.find({ productId: id }).populate("userId");
+
+    res
+      .status(200)
+      .json({ success: true, message: "Reviews fetched", reviews });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({success:false,message:"Internal Server Error"})
+    
+  }
+};
+
 export {
   createOrder,
   getAllOrderOfUser,
@@ -1015,4 +1068,6 @@ export {
   getReturnRequestByItemId,
   getAllReturnRequests,
   returnRequestUpdate,
+  orderReview,
+  getAllReviews
 };

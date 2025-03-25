@@ -78,7 +78,7 @@ const deleteCategory = async (req, res) => {
     const categoryProducts = await Product.countDocuments({
       category: category._id,
     });
-  
+
     if (categoryProducts > 0) {
       return res.status(400).json({
         success: false,
@@ -133,6 +133,26 @@ const topSellingCategories = async (req, res) => {
   }
 };
 
+const getAllAvailableCategories = async (req, res) => {
+  try {
+
+    let categories = await Category.find({is_deleted:false})
+
+     categories = categories.map((doc) => ({
+      ...doc._doc,
+      name: doc.name
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" "),
+    }));
+
+    return  res.status(200).json({success:true,message:"",categories})
+
+  } catch (error) {
+    res.status(500).json({success:false,message:"Internal server Error"})
+  }
+};
+
 export {
   addCategory,
   getCategories,
@@ -140,4 +160,5 @@ export {
   deleteCategory,
   softDeleteCategory,
   topSellingCategories,
+  getAllAvailableCategories
 };

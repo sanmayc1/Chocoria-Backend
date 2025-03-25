@@ -9,6 +9,7 @@ import {
 import userDataValidation from "../../Middleware/validation.js";
 import {
   forgetPassword,
+  getReferralUrl,
   resetPassword,
   updateUserProfile,
   userLogout,
@@ -19,7 +20,7 @@ import cartRoute from "./cartRoute.js";
 import addressRoute from "./addressRoute.js";
 import productRoute from "./productsRoutes.js";
 import orderRoute from "./OrderRoutes.js";
-import { getCategories } from "../../Controller/categoryController.js";
+import { getAllAvailableCategories, getCategories } from "../../Controller/categoryController.js";
 import wishlistRoute from "./wishlistRoute.js";
 import { getWalletByUserId } from "../../Controller/walletController.js";
 import userCouponRoute from "./couponRoutes.js";
@@ -34,16 +35,13 @@ userRoute.patch("/otp", verifyOtp);
 userRoute.post("/resend-otp", resend_Otp);
 userRoute.post("/auth/login", authLogin);
 userRoute.post("/logout", userLogout);
-
+userRoute.get("/referral",jwtVerify,getReferralUrl)
 userRoute.post("/forget-password", forgetPassword);
 userRoute.patch("/reset-password", resetPassword);
-
 userRoute.get("/profile", jwtVerify, userProfile);
 userRoute.patch("/update-profile", jwtVerify, updateUserProfile);
-
-userRoute.get("/categories", getCategories);
+userRoute.get("/categories", getAllAvailableCategories);
 userRoute.get("/wallet",jwtVerify, getWalletByUserId);
-
 userRoute.get("/order/:id/reviews",getAllReviews)
 
 userRoute.use("/products", productRoute);

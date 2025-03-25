@@ -1,5 +1,6 @@
 import Brand from "../Model/brand.js";
 import Product from "../Model/productModel.js";
+import fs from 'fs'
 
 const createBrand = async (req, res) => {
   try {
@@ -62,6 +63,8 @@ const deleteBrand  = async (req,res)=>{
           res.status(409).json({success:false,message:"Can't delete this brand have products"})
           return
         }
+
+        fs.unlinkSync(`.${brand.image}`)
         await Brand.findByIdAndDelete(id)
         res.status(200).json({success:true,message:"Brand Deleted Successfully"})
         

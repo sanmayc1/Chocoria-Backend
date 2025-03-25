@@ -1,6 +1,7 @@
 import { activeUsers, io } from "../index.js";
 import User from "../Model/userModel.js";
 import dateFormat from "../utils/dateFormat.js";
+import { FRONTEND_URL } from "../utils/envValues.js";
 import sendPasswordRestLink from "../utils/sendPasswordRestLink.js";
 import { hash } from "bcrypt";
 
@@ -345,6 +346,20 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const getReferralUrl = async (req,res)=>{
+  try {
+    const {id} = req.user
+
+    const referralUrl = `${FRONTEND_URL}/signup?referral=${id}`
+
+    res.status(200).json({success:true,message:"Url fetched successfully" ,referralUrl })
+    
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+}
+
 export {
   userLogout,
   userProfile,
@@ -359,5 +374,6 @@ export {
   getAddressById,
   forgetPassword,
   resetPassword,
-  setDefaultAddress
+  setDefaultAddress,
+  getReferralUrl
 };

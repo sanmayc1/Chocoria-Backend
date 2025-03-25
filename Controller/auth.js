@@ -9,6 +9,8 @@ const saltRound = 10;
 // register a new user
 const authSignUp = async (req, res) => {
   try {
+    
+    
     //Checking the the user is already exist
     const existingUser = await User.findOne({ email: req.body.email });
     if (existingUser) {
@@ -132,6 +134,7 @@ const authWithGoogle = async (req, res) => {
 const verifyOtp = async (req, res) => {
   const { id, otp } = req.body;
   try {
+    console.log(req.body);
     const findOtp = await Otp.findOne({ userId: id });
 
     if (!findOtp) {

@@ -9,8 +9,7 @@ const addtocart = async (req, res) => {
   try {
     const products = req.body;
     const { id } = req.user;
-   
-console.log(products,);
+
     if (products.quantity > 8) {
       return res.status(400).json({
         success: false,
@@ -125,7 +124,7 @@ const getAllProductsFromCart = async (req, res) => {
     cart.products = cart.products
       .filter(
         (product) =>
-          product.productId && !product.productId.is_deleted && product.variant
+          product.productId && !product.productId.is_deleted && product.variant && !product.productId.category.is_deleted
       )
       .map((product) => ({
         productId: product.productId._id,

@@ -884,12 +884,24 @@ const totalRevenue = async (req, res) => {
 const createRazorpayOrder = async (req, res) => {
   const { totalAmountAfterDiscount, orderItemId } = req.body;
 
-  const orderItem = await OrderItem.findById(orderItemId);
-  console.log(orderItem);
+  const orderItem = await OrderItem.findById(orderItemId).populate("orderId");
+ 
   if (!orderItem) {
     return res
       .status(400)
       .json({ success: false, message: "Order item not found" });
+  }
+
+  if(orderItem.orderId.coupon){
+    
+    const used = await UsedCoupon.findOne({couponCode:orderItem.orderId.coupon._id})
+    if(used){
+      if(used.usageCount >= orderItem.orderId.coupon.usageLimit){
+        return res
+        .status(409)
+        .json({ success: false, message: "The applied Coupon limit Reach can't continue payment please order again" });
+      }
+    }
   }
 
   const razorpay = new Razorpay({
@@ -935,10 +947,14 @@ const verifyRetryPayment = async (req, res) => {
     orderItem.status = "Pending";
     orderItem.save();
 
+    const variant = await Variant.findOne({_id:orderItem.variant._id})
+    variant.quantity -= orderItem.quantity
+    variant.save()
     if (orderItem.orderId.coupon) {
       const couponUse = await UsedCoupon.findOne({
         couponCode: orderItem.orderId.coupon._id,
         userId: orderItem.orderId.userId,
+        
       });
       if (!couponUse) {
         const newUsedCoupon = new UsedCoupon({
@@ -1033,7 +1049,7 @@ const orderReview = async (req, res) => {
 const getAllReviews = async (req, res) => {
   try {
     const { id } = req.params;
-  
+
     const reviews = await Review.find({ productId: id }).populate("userId");
 
     res
@@ -1041,8 +1057,7 @@ const getAllReviews = async (req, res) => {
       .json({ success: true, message: "Reviews fetched", reviews });
   } catch (error) {
     console.log(error);
-    res.status(500).json({success:false,message:"Internal Server Error"})
-    
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
@@ -1069,5 +1084,5 @@ export {
   getAllReturnRequests,
   returnRequestUpdate,
   orderReview,
-  getAllReviews
+  getAllReviews,
 };

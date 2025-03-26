@@ -491,11 +491,9 @@ const getProductsUserSideListing = async (req, res) => {
 
 const topSellingProducts = async (req, res) => {
   try {
-    let products = await Product.find({ is_deleted: false })
+    let products = await Product.find({ is_deleted: false, buyCount: { $ne: 0 } })
       .sort({ buyCount: -1 })
       .limit(10);
-
-    products = products.filter((product) => product.buyCount > 0);
 
     res.status(200).json({
       success: true,

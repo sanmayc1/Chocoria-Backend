@@ -10,6 +10,7 @@ import userDataValidation from "../../Middleware/validation.js";
 import {
   forgetPassword,
   getReferralUrl,
+  getUserReferrals,
   resetPassword,
   updateUserProfile,
   userLogout,
@@ -43,6 +44,7 @@ userRoute.patch("/update-profile", jwtVerify, updateUserProfile);
 userRoute.get("/categories", getAllAvailableCategories);
 userRoute.get("/wallet",jwtVerify, getWalletByUserId);
 userRoute.get("/order/:id/reviews",getAllReviews)
+userRoute.get("/referral/invites",jwtVerify, getUserReferrals)
 
 userRoute.use("/products", productRoute);
 userRoute.use("/brand",userBrandRoute)

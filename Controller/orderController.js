@@ -15,6 +15,7 @@ import Category from "../Model/categoryModel.js";
 import orderReturnRequest from "../Model/orderReturn.js";
 import Review from "../Model/ReviewModel.js";
 import mongoose from "mongoose";
+import Brand from "../Model/brand.js";
 
 // create order
 const createOrder = async (req, res) => {
@@ -432,10 +433,14 @@ const changeOrderStatus = async (req, res) => {
       await order.save();
       const product = await Product.findById(order.productId);
       const category = await Category.findById(product.category);
+      const brand = await Brand.findById(product.brand);
       category.buyCount += order.quantity;
       product.buyCount += order.quantity;
+      brand.buyCount += order.quantity;
+       
       await product.save();
       await category.save();
+      await brand.save();
     }
 
     order.status = status;
@@ -677,7 +682,7 @@ const returnRequestUpdate = async (req, res) => {
     if (status === "approved") {
       const orderItem = await OrderItem.findOne({
         _id: returnRequest.orderItem,
-      });
+      }).populate("productId");
       orderItem.status = "Return";
       if (orderItem.paymentStatus === "success" && status === "approved") {
         const wallet = await Wallet.findOne({ userId: returnRequest.userId });
@@ -725,6 +730,18 @@ const returnRequestUpdate = async (req, res) => {
       const productVariant = await Variant.findById(orderItem.variant._id);
       productVariant.quantity += orderItem.quantity;
       productVariant.save();
+      
+      const category = await Category.findById(orderItem.productId.category);
+      const brand = await Brand.findById(orderItem.productId.brand);
+      const product = await Product.findById(orderItem.productId._id);
+      category.buyCount -= orderItem.quantity;
+      product.buyCount -= orderItem.quantity;
+      brand.buyCount -= orderItem.quantity;
+
+      await category.save();
+      await brand.save();
+      await product.save();
+
     }
 
     res
@@ -1026,6 +1043,7 @@ const orderReview = async (req, res) => {
       orderItemId,
     });
 
+  
     const id = new mongoose.Types.ObjectId(`${productId}`);
     const averageRating = await Review.aggregate([
       {
@@ -1043,7 +1061,10 @@ const orderReview = async (req, res) => {
     await product.save();
 
     res.status(200).json({ success: true, message: "Review Sumbimited" });
-  } catch (error) {}
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
 };
 
 const getAllReviews = async (req, res) => {

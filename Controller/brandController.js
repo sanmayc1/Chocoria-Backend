@@ -1,6 +1,7 @@
 import Brand from "../Model/brand.js";
 import Product from "../Model/productModel.js";
 import fs from 'fs'
+import ReferralOffer from "../Model/referralOffer.js";
 
 const createBrand = async (req, res) => {
   try {
@@ -39,6 +40,8 @@ const getAllBrands = async(req,res)=>{
 
     try {
         const brands = await Brand.find()
+      
+       
         res.status(200).json({success:true , message:"fetched all brands" ,brands})
 
     } catch (error) {
@@ -75,4 +78,15 @@ const deleteBrand  = async (req,res)=>{
     }
 }
 
-export { createBrand ,getAllBrands ,deleteBrand};
+const topSellingBrands = async(req,res)=>{
+  try {
+   
+    const brands = await Brand.find({buyCount:{$ne:0}}).sort({buyCount:-1}).limit(10)
+    res.status(200).json({success:true,brands})
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ success: false, message: "Internal Server error" });
+  }
+}
+
+export { createBrand ,getAllBrands ,deleteBrand,topSellingBrands};

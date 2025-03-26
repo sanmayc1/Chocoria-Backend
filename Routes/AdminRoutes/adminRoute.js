@@ -27,7 +27,7 @@ import {
 } from "../../Controller/productController.js";
 import adminOrderRoute from "./orderRoutes.js";
 import AdmincouponRoute from "./couponRoute.js";
-import { addOffer, deleteOffer, getAllOffers } from "../../Controller/offerController.js";
+import { addOffer, deleteOffer, editDefaultReferral, getAllOffers, getReferralOffer } from "../../Controller/offerController.js";
 import brandRoute from "./brand.js";
 
 const adminRoute = Router();
@@ -89,6 +89,9 @@ adminRoute.patch(
   products.array("images[]"),
   editProduct
 );
+
+adminRoute.get("/default-referral-offer", jwtVerify, verifyAdmin, getReferralOffer);
+adminRoute.patch("/default-referral-offer", jwtVerify, verifyAdmin,editDefaultReferral);
 
 adminRoute.delete("/products/:id", jwtVerify, verifyAdmin, deleteProduct);
 

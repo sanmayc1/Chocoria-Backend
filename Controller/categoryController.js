@@ -122,10 +122,15 @@ const softDeleteCategory = async (req, res) => {
 
 const topSellingCategories = async (req, res) => {
   try {
-    let categories = await Category.find({ is_deleted: false }).sort({
-      buyCount: -1,
-    });
-    categories = categories.filter((category) => category.buyCount > 0);
+    let categories = await Category.find({
+      is_deleted: false,
+      buyCount: { $ne: 0 },
+    })
+      .sort({
+        buyCount: -1,
+      })
+      .limit(10);
+
     res.status(200).json({ success: true, categories });
   } catch (error) {
     console.log(error);
@@ -135,10 +140,9 @@ const topSellingCategories = async (req, res) => {
 
 const getAllAvailableCategories = async (req, res) => {
   try {
+    let categories = await Category.find({ is_deleted: false });
 
-    let categories = await Category.find({is_deleted:false})
-
-     categories = categories.map((doc) => ({
+    categories = categories.map((doc) => ({
       ...doc._doc,
       name: doc.name
         .split(" ")
@@ -146,10 +150,9 @@ const getAllAvailableCategories = async (req, res) => {
         .join(" "),
     }));
 
-    return  res.status(200).json({success:true,message:"",categories})
-
+    return res.status(200).json({ success: true, message: "", categories });
   } catch (error) {
-    res.status(500).json({success:false,message:"Internal server Error"})
+    res.status(500).json({ success: false, message: "Internal server Error" });
   }
 };
 
@@ -160,5 +163,5 @@ export {
   deleteCategory,
   softDeleteCategory,
   topSellingCategories,
-  getAllAvailableCategories
+  getAllAvailableCategories,
 };

@@ -4,13 +4,15 @@ import axios from "axios";
 import sendOtpEmail from "../utils/sendOtp.js";
 import Otp from "../Model/otpModel.js";
 import tokenGenerate from "../utils/jwtTokenGenerate.js";
+import ReferralOffer from "../Model/referralOffer.js";
+import Referral from "../Model/referrals.js";
+import Wallet from "../Model/walletModel.js";
+import WalletTransaction from "../Model/walletTransaction.js";
 const saltRound = 10;
 
 // register a new user
 const authSignUp = async (req, res) => {
   try {
-    
-    
     //Checking the the user is already exist
     const existingUser = await User.findOne({ email: req.body.email });
     if (existingUser) {
@@ -46,7 +48,7 @@ const authSignUp = async (req, res) => {
 /// Login or signUp with google
 
 const authWithGoogle = async (req, res) => {
-  const { accessToken } = req.body;
+  const { accessToken ,referral} = req.body;
 
   try {
     // fetching user informations from google
@@ -109,6 +111,57 @@ const authWithGoogle = async (req, res) => {
       const userDetails = { id: saved.id, role: saved.role, auth: true };
       const token = tokenGenerate(userDetails);
 
+      if (referral) {
+        const defaultReferral = await ReferralOffer.findOne({
+          offer: "defaultReferral",
+        });
+        const referrals = new Referral({
+          referrer: referral,
+          referee: saved._id,
+          amount: defaultReferral.amount,
+        });
+        await referrals.save();
+  
+        const referrerWallet = await Wallet.findOne({ userId: referral });
+        if (!referrerWallet) {
+          const newWallet = new Wallet({
+            userId: referral,
+            balance: 0,
+            transactions: [],
+          });
+          const savedWallet = await newWallet.save();
+          const transactionId = `TXN${Date.now()}${Math.floor(
+            1000 + Math.random() * 9000
+          )}`;
+          const newTransaction = new WalletTransaction({
+            walletId: savedWallet._id,
+            transactionId,
+            type: "credit",
+            amount: defaultReferral.amount,
+            status: "success",
+          });
+          await newTransaction.save();
+          savedWallet.transactions.push(newTransaction._id);
+          savedWallet.balance += newTransaction.amount;
+          await savedWallet.save();
+        } else {
+          const transactionId = `TXN${Date.now()}${Math.floor(
+            1000 + Math.random() * 9000
+          )}`;
+          const newTransaction = new WalletTransaction({
+            walletId: referrerWallet._id,
+            transactionId,
+            type: "credit",
+            amount: defaultReferral.amount,
+            status: "success",
+          });
+          await newTransaction.save();
+          referrerWallet.transactions.push(newTransaction._id);
+          referrerWallet.balance += newTransaction.amount;
+          await referrerWallet.save();
+        }
+      }
+
       res.cookie("token", token, {
         httpOnly: true,
         secure: true,
@@ -122,6 +175,8 @@ const authWithGoogle = async (req, res) => {
       });
     }
   } catch (error) {
+    console.log(error);
+    
     return res.status(500).json({
       success: false,
       message: "Internal Server Error. Please try again later.",
@@ -132,9 +187,8 @@ const authWithGoogle = async (req, res) => {
 // verify the email using otp
 
 const verifyOtp = async (req, res) => {
-  const { id, otp } = req.body;
+  const { id, otp, referral } = req.body;
   try {
-    console.log(req.body);
     const findOtp = await Otp.findOne({ userId: id });
 
     if (!findOtp) {
@@ -151,6 +205,57 @@ const verifyOtp = async (req, res) => {
     }
 
     await User.findByIdAndUpdate(id, { is_Verified: true });
+
+    if (referral) {
+      const defaultReferral = await ReferralOffer.findOne({
+        offer: "defaultReferral",
+      });
+      const referrals = new Referral({
+        referrer: referral,
+        referee: id,
+        amount: defaultReferral.amount,
+      });
+      await referrals.save();
+
+      const referrerWallet = await Wallet.findOne({ userId: referral });
+      if (!referrerWallet) {
+        const newWallet = new Wallet({
+          userId: referral,
+          balance: 0,
+          transactions: [],
+        });
+        const savedWallet = await newWallet.save();
+        const transactionId = `TXN${Date.now()}${Math.floor(
+          1000 + Math.random() * 9000
+        )}`;
+        const newTransaction = new WalletTransaction({
+          walletId: savedWallet._id,
+          transactionId,
+          type: "credit",
+          amount: defaultReferral.amount,
+          status: "success",
+        });
+        await newTransaction.save();
+        savedWallet.transactions.push(newTransaction._id);
+        savedWallet.balance += newTransaction.amount;
+        await savedWallet.save();
+      } else {
+        const transactionId = `TXN${Date.now()}${Math.floor(
+          1000 + Math.random() * 9000
+        )}`;
+        const newTransaction = new WalletTransaction({
+          walletId: referrerWallet._id,
+          transactionId,
+          type: "credit",
+          amount: defaultReferral.amount,
+          status: "success",
+        });
+        await newTransaction.save();
+        referrerWallet.transactions.push(newTransaction._id);
+        referrerWallet.balance += newTransaction.amount;
+        await referrerWallet.save();
+      }
+    }
     return res
       .status(200)
       .json({ success: true, message: "OTP verified successfully!" });

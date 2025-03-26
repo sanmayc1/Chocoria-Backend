@@ -1,5 +1,5 @@
 import express from "express";
-import { PORT } from "./utils/envValues.js";
+import { FRONTEND_URL, PORT } from "./utils/envValues.js";
 import connectMongose from "./config/ConnectDb/MongoDbConnect.js";
 import userRoute from "./Routes/UserRoutes/userRoute.js";
 import adminRoute from "./Routes/AdminRoutes/adminRoute.js";
@@ -14,14 +14,14 @@ const app = express();
 const server = createServer(app);
 export const io = new Server(server, {
   cors: {
-    origin: "http://localhost:7000",
+    origin: FRONTEND_URL,
     credentials: true,
   },
 });
 
 app.use(
   cors({
-    origin: "http://localhost:7000",
+    origin:FRONTEND_URL,
     credentials: true,
   })
 );
@@ -40,7 +40,6 @@ app.use("/img", express.static(path.join(process.cwd(), "img")));
 
 //MongoDb connect
 connectMongose();
-
 // specifying routes
 app.use("/user", userRoute);
 app.use("/admin", adminRoute);

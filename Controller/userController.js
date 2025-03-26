@@ -1,4 +1,6 @@
 import { activeUsers, io } from "../index.js";
+import ReferralOffer from "../Model/referralOffer.js";
+import Referral from "../Model/referrals.js";
 import User from "../Model/userModel.js";
 import dateFormat from "../utils/dateFormat.js";
 import { FRONTEND_URL } from "../utils/envValues.js";
@@ -351,9 +353,20 @@ const getReferralUrl = async (req,res)=>{
     const {id} = req.user
 
     const referralUrl = `${FRONTEND_URL}/signup?referral=${id}`
-
-    res.status(200).json({success:true,message:"Url fetched successfully" ,referralUrl })
+    const defaultReferral = await ReferralOffer.findOne({offer:"defaultReferral"})
+    res.status(200).json({success:true,message:"Url fetched successfully" ,referralUrl,defaultReferral })
     
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+}
+
+const getUserReferrals = async(req,res)=>{
+  try {
+    const {id} = req.user
+    const invites= await Referral.find({referrer:id}).populate("referee")
+    res.status(200).json({success:true,invites}) 
   } catch (error) {
     console.log(error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -375,5 +388,6 @@ export {
   forgetPassword,
   resetPassword,
   setDefaultAddress,
-  getReferralUrl
+  getReferralUrl,
+  getUserReferrals
 };

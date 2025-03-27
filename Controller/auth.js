@@ -8,6 +8,7 @@ import ReferralOffer from "../Model/referralOffer.js";
 import Referral from "../Model/referrals.js";
 import Wallet from "../Model/walletModel.js";
 import WalletTransaction from "../Model/walletTransaction.js";
+import { NODE_ENV } from "../utils/envValues.js";
 const saltRound = 10;
 
 // register a new user
@@ -41,14 +42,13 @@ const authSignUp = async (req, res) => {
     res
       .status(500)
       .json({ status: 500, success: false, message: "Internal Server Error" });
-    
   }
 };
 
 /// Login or signUp with google
 
 const authWithGoogle = async (req, res) => {
-  const { accessToken ,referral} = req.body;
+  const { accessToken, referral } = req.body;
 
   try {
     // fetching user informations from google
@@ -87,8 +87,8 @@ const authWithGoogle = async (req, res) => {
 
       res.cookie("token", token, {
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
+        secure: NODE_ENV === "production" ? true : false,
+        sameSite: NODE_ENV === "production" ? "strict" : "lax",
       });
       return res.status(200).json({
         success: true,
@@ -121,7 +121,7 @@ const authWithGoogle = async (req, res) => {
           amount: defaultReferral.amount,
         });
         await referrals.save();
-  
+
         const referrerWallet = await Wallet.findOne({ userId: referral });
         if (!referrerWallet) {
           const newWallet = new Wallet({
@@ -164,8 +164,8 @@ const authWithGoogle = async (req, res) => {
 
       res.cookie("token", token, {
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
+        secure: NODE_ENV === "production" ? true : false,
+        sameSite: NODE_ENV === "production" ? "strict" : "lax",
       });
       res.status(200).json({
         success: true,
@@ -176,7 +176,7 @@ const authWithGoogle = async (req, res) => {
     }
   } catch (error) {
     console.log(error);
-    
+
     return res.status(500).json({
       success: false,
       message: "Internal Server Error. Please try again later.",
@@ -336,8 +336,8 @@ const authLogin = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: NODE_ENV === "production" ? true : false,
+      sameSite: NODE_ENV === "production" ? "strict" : "lax",
     });
     res.status(200).json({
       success: true,

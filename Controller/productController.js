@@ -6,6 +6,7 @@ import path from "path";
 import offerCalculate from "../utils/offerCalculate.js";
 import OrderItem from "../Model/orderItemsModel.js";
 import { populate } from "dotenv";
+import { log } from "console";
 // add new product
 
 const addProduct = async (req, res) => {
@@ -286,7 +287,6 @@ const editProduct = async (req, res) => {
 
     const newVariants = await Promise.all(
       variants.map(async (variant) => {
-        console.log(variant._id);
         if (mongoose.Types.ObjectId.isValid(variant._id)) {
           const exist = await Variant.findById(variant._id);
 
@@ -342,8 +342,6 @@ const editProduct = async (req, res) => {
 const searchProducts = async (req, res) => {
   try {
     const { searchQuery, sortBy, rating, category,brand } = req.query;
-   
-
     const query = decodeURIComponent(searchQuery);
     const filter = {};
     filter.is_deleted = false;
@@ -353,14 +351,16 @@ const searchProducts = async (req, res) => {
     }
 
     if (category) {
+      
+      
       filter.category = new mongoose.Types.ObjectId(`${category}`);
     }
 
-    // if(rating){
-    //   filter.rating = {
-    //     $gte: rating
-    //   }
-    // }
+    if(rating){
+      filter.averageRating = {
+        $gte: Number(rating),
+      }
+    }
 
     if(brand){
       filter.brand = new mongoose.Types.ObjectId(`${brand}`);

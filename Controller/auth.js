@@ -40,8 +40,8 @@ const authSignUp = async (req, res) => {
     // error response
     res
       .status(500)
-      .json({ status: 500, success: false, message: error.message });
-    console.log(error.message);
+      .json({ status: 500, success: false, message: "Internal Server Error" });
+    
   }
 };
 

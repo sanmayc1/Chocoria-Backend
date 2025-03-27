@@ -97,7 +97,7 @@ const sendPasswordRestLink = async (userId, recipientEmail, username) => {
 
     <!-- Footer -->
     <div class="footer">
-      <p>Need help? <a href="mailto:sanmayc9@gmail.com">Contact Support</a></p>
+      
       <p>&copy; 2025 Chocoria. All rights reserved.</p>
     </div>
   </div>
@@ -108,7 +108,6 @@ const sendPasswordRestLink = async (userId, recipientEmail, username) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log("Password reset email sent");
   } catch (error) {
     console.log(error);
   }

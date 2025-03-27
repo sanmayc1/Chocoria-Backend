@@ -79,7 +79,6 @@ const deleteFromWishlist = async (req, res) => {
   try {
     const { id } = req.user;
     const { wishlistItemId } = req.params;
-    console.log(wishlistItemId, id);
     const wishlist = await Wishlist.findOne({ userId: id });
     if (!wishlist) {
       return res

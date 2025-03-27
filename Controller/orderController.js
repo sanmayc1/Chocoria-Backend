@@ -1,7 +1,6 @@
 import Order from "../Model/orderModel.js";
 import OrderItem from "../Model/orderItemsModel.js";
 import Product from "../Model/productModel.js";
-import dateFormat from "../utils/dateFormat.js";
 import OrderCancelRequest from "../Model/orderCancelRequest.js";
 import Variant from "../Model/variant.js";
 import Razorpay from "razorpay";
@@ -30,7 +29,9 @@ const createOrder = async (req, res) => {
         .json({ success: false, message: "Please Check all details" });
     }
 
+
     const user = await User.findById(id);
+    const wallet = await Wallet.findOne({userId:id})
 
     let totalAmount = 0;
     let totalAmountAfterOfferDiscount = 0;
@@ -60,6 +61,14 @@ const createOrder = async (req, res) => {
         success: false,
         message:
           "COD not available for orders above ₹1000. Please use another payment method.",
+      });
+    }
+ 
+    if (paymentMethod === "wallet" && totalAmountAfterDiscount > wallet.balance) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Insufficient balance in wallet. Please use another payment method.",
       });
     }
 
@@ -101,6 +110,23 @@ const createOrder = async (req, res) => {
 
     await order.save();
 
+    if(paymentMethod === "wallet"){
+      const transactionId = `TXN${Date.now()}${Math.floor(
+        1000 + Math.random() * 9000
+      )}`;
+      const newTransaction = new WalletTransaction({
+        walletId: wallet._id,
+        transactionId,
+        type: "debit",
+        amount: totalAmountAfterDiscount,
+        status: "success",
+      });
+      await newTransaction.save();
+      wallet.transactions.push(newTransaction._id);
+      wallet.balance -= totalAmountAfterDiscount;
+      await wallet.save();
+    }
+
     const orderItems = await Promise.all(
       items.map(async (item) => {
         const couponDiscountOfEachItem = couponDiscount
@@ -129,9 +155,14 @@ const createOrder = async (req, res) => {
           ).toFixed(2),
           totalPrice,
         });
+     
+        if(paymentMethod === "wallet"){ 
+          orderItem.paymentStatus = "success";
+        }
+      
 
         const savedOrderItem = await orderItem.save();
-        if (paymentMethod === "COD") {
+        if (paymentMethod !== "razorpay") {
           const variant = await Variant.findById(item.variant._id);
           variant.quantity -= item.quantity;
           await variant.save();

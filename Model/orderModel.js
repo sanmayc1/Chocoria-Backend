@@ -11,7 +11,7 @@ const OrderSchema = new mongoose.Schema({
     coupon: { type: Object, default: null }, 
     totalAmountAfterDiscount: { type: Number, required: true }, 
     orderDate: { type: Date, default: Date.now },
-    paymentMethod: { type: String, enum: ["COD","Online"], required: true },
+    paymentMethod: { type: String, enum: ["COD","Online","wallet"], required: true },
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
     shippingAddress: {

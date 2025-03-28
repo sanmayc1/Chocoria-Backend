@@ -163,7 +163,8 @@ const createOrder = async (req, res) => {
 
         const savedOrderItem = await orderItem.save();
         if (paymentMethod !== "razorpay") {
-         
+          console.log('reach');
+          
           await Variant.findByIdAndUpdate(item.variant._id, { $inc: { quantity: -item.quantity } });
           if (coupon) {
             const couponUse = await UsedCoupon.findOne({

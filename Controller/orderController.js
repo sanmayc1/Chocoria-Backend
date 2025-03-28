@@ -166,7 +166,7 @@ const createOrder = async (req, res) => {
         
         
         if (paymentMethod !== "Online") {
-          console.log("reach");
+         
           await Variant.findByIdAndUpdate(item.variant._id, {
             $inc: { quantity: -item.quantity },
           });

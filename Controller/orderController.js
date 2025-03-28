@@ -29,9 +29,8 @@ const createOrder = async (req, res) => {
         .json({ success: false, message: "Please Check all details" });
     }
 
-
     const user = await User.findById(id);
-    const wallet = await Wallet.findOne({userId:id})
+    const wallet = await Wallet.findOne({ userId: id });
 
     let totalAmount = 0;
     let totalAmountAfterOfferDiscount = 0;
@@ -63,8 +62,11 @@ const createOrder = async (req, res) => {
           "COD not available for orders above ₹1000. Please use another payment method.",
       });
     }
- 
-    if (paymentMethod === "wallet" && totalAmountAfterDiscount > wallet.balance) {
+
+    if (
+      paymentMethod === "wallet" &&
+      totalAmountAfterDiscount > wallet.balance
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -110,7 +112,7 @@ const createOrder = async (req, res) => {
 
     await order.save();
 
-    if(paymentMethod === "wallet"){
+    if (paymentMethod === "wallet") {
       const transactionId = `TXN${Date.now()}${Math.floor(
         1000 + Math.random() * 9000
       )}`;
@@ -155,17 +157,20 @@ const createOrder = async (req, res) => {
           ).toFixed(2),
           totalPrice,
         });
-     
-        if(paymentMethod === "wallet"){ 
+
+        if (paymentMethod === "wallet") {
           orderItem.paymentStatus = "success";
         }
-      
 
         const savedOrderItem = await orderItem.save();
+        console.log(paymentMethod === "razorpay" ,paymentMethod);
+        
         if (paymentMethod !== "razorpay") {
-          console.log('reach');
-          
-          await Variant.findByIdAndUpdate(item.variant._id, { $inc: { quantity: -item.quantity } });
+          console.log("reach");
+
+          await Variant.findByIdAndUpdate(item.variant._id, {
+            $inc: { quantity: -item.quantity },
+          });
           if (coupon) {
             const couponUse = await UsedCoupon.findOne({
               couponCode: coupon._id,
@@ -228,7 +233,9 @@ const verifyRazorpayPayment = async (req, res) => {
 
     await Promise.all(
       order.items.map(async (item) => {
-        await Variant.findByIdAndUpdate(item.variant._id, { $inc: { quantity: -item.quantity } });
+        await Variant.findByIdAndUpdate(item.variant._id, {
+          $inc: { quantity: -item.quantity },
+        });
         const orderItem = await OrderItem.findById(item._id);
         orderItem.paymentStatus = "success";
         await orderItem.save();
@@ -465,7 +472,7 @@ const changeOrderStatus = async (req, res) => {
       category.buyCount += order.quantity;
       product.buyCount += order.quantity;
       brand.buyCount += order.quantity;
-       
+
       await product.save();
       await category.save();
       await brand.save();
@@ -758,7 +765,7 @@ const returnRequestUpdate = async (req, res) => {
       const productVariant = await Variant.findById(orderItem.variant._id);
       productVariant.quantity += orderItem.quantity;
       productVariant.save();
-      
+
       const category = await Category.findById(orderItem.productId.category);
       const brand = await Brand.findById(orderItem.productId.brand);
       const product = await Product.findById(orderItem.productId._id);
@@ -769,7 +776,6 @@ const returnRequestUpdate = async (req, res) => {
       await category.save();
       await brand.save();
       await product.save();
-
     }
 
     res
@@ -930,21 +936,26 @@ const createRazorpayOrder = async (req, res) => {
   const { totalAmountAfterDiscount, orderItemId } = req.body;
 
   const orderItem = await OrderItem.findById(orderItemId).populate("orderId");
- 
+
   if (!orderItem) {
     return res
       .status(400)
       .json({ success: false, message: "Order item not found" });
   }
 
-  if(orderItem.orderId.coupon){
-    
-    const used = await UsedCoupon.findOne({couponCode:orderItem.orderId.coupon._id})
-    if(used){
-      if(used.usageCount >= orderItem.orderId.coupon.usageLimit){
+  if (orderItem.orderId.coupon) {
+    const used = await UsedCoupon.findOne({
+      couponCode: orderItem.orderId.coupon._id,
+    });
+    if (used) {
+      if (used.usageCount >= orderItem.orderId.coupon.usageLimit) {
         return res
-        .status(409)
-        .json({ success: false, message: "The applied Coupon limit Reach can't continue payment please order again" });
+          .status(409)
+          .json({
+            success: false,
+            message:
+              "The applied Coupon limit Reach can't continue payment please order again",
+          });
       }
     }
   }
@@ -992,14 +1003,13 @@ const verifyRetryPayment = async (req, res) => {
     orderItem.status = "Pending";
     orderItem.save();
 
-    const variant = await Variant.findOne({_id:orderItem.variant._id})
-    variant.quantity -= orderItem.quantity
-    variant.save()
+    const variant = await Variant.findOne({ _id: orderItem.variant._id });
+    variant.quantity -= orderItem.quantity;
+    variant.save();
     if (orderItem.orderId.coupon) {
       const couponUse = await UsedCoupon.findOne({
         couponCode: orderItem.orderId.coupon._id,
         userId: orderItem.orderId.userId,
-        
       });
       if (!couponUse) {
         const newUsedCoupon = new UsedCoupon({
@@ -1071,7 +1081,6 @@ const orderReview = async (req, res) => {
       orderItemId,
     });
 
-  
     const id = new mongoose.Types.ObjectId(`${productId}`);
     const averageRating = await Review.aggregate([
       {

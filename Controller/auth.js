@@ -88,7 +88,7 @@ const authWithGoogle = async (req, res) => {
       res.cookie("token", token, {
         httpOnly: true,
         secure: NODE_ENV === "production" ? true : false,
-        sameSite: NODE_ENV === "production" ? "strict" : "lax",
+        sameSite: NODE_ENV === "production" ? "None" : "lax",
       });
       return res.status(200).json({
         success: true,

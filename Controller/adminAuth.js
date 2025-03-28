@@ -1,6 +1,7 @@
 import { compare } from "bcrypt";
 import tokenGenerate from "../utils/jwtTokenGenerate.js";
 import User from "../Model/userModel.js";
+import { NODE_ENV } from "../utils/envValues.js";
 
 const authAdminLogin = async (req, res) => {
   try {
@@ -34,7 +35,8 @@ const authAdminLogin = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,
+      secure: NODE_ENV === "production" ? true : false,
+      sameSite: NODE_ENV === "production" ? "None" : "lax",
     });
     res.status(200).json({
       success: true,

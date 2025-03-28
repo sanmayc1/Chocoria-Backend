@@ -86,6 +86,7 @@ const authWithGoogle = async (req, res) => {
       const token = tokenGenerate(userDetails);
 
       res.cookie("token", token, {
+        
         httpOnly: true,
         secure: NODE_ENV === "production" ? true : false,
         sameSite: NODE_ENV === "production" ? "None" : "lax",
@@ -165,7 +166,7 @@ const authWithGoogle = async (req, res) => {
       res.cookie("token", token, {
         httpOnly: true,
         secure: NODE_ENV === "production" ? true : false,
-        sameSite: NODE_ENV === "production" ? "strict" : "lax",
+        sameSite: NODE_ENV === "production" ? "None" : "lax",
       });
       res.status(200).json({
         success: true,
@@ -337,7 +338,7 @@ const authLogin = async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: NODE_ENV === "production" ? true : false,
-      sameSite: NODE_ENV === "production" ? "strict" : "lax",
+      sameSite: NODE_ENV === "production" ? "None" : "lax",
     });
     res.status(200).json({
       success: true,

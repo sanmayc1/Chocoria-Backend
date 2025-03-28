@@ -2,9 +2,7 @@ import { SECRET_KEY } from "../utils/envValues.js";
 import jwt from 'jsonwebtoken'
 
 const jwtVerify = (req, res, next) => {
-    const token = req.cookies.token;
-    console.log(token);
-    
+    const token = req.cookies.token;  
     if (!token) {
         return res.status(403).json({ success: false, message: "Unauthorized" });
     }

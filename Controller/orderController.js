@@ -163,10 +163,8 @@ const createOrder = async (req, res) => {
 
         const savedOrderItem = await orderItem.save();
         if (paymentMethod !== "razorpay") {
-          const variant = await Variant.findById(item.variant._id);
-          variant.quantity -= item.quantity;
-          await variant.save();
-
+         
+          await Variant.findByIdAndUpdate(item.variant._id, { $inc: { quantity: -item.quantity } });
           if (coupon) {
             const couponUse = await UsedCoupon.findOne({
               couponCode: coupon._id,
@@ -229,9 +227,7 @@ const verifyRazorpayPayment = async (req, res) => {
 
     await Promise.all(
       order.items.map(async (item) => {
-        const variant = await Variant.findById(item.variant._id);
-        variant.quantity -= item.quantity;
-        await variant.save();
+        await Variant.findByIdAndUpdate(item.variant._id, { $inc: { quantity: -item.quantity } });
         const orderItem = await OrderItem.findById(item._id);
         orderItem.paymentStatus = "success";
         await orderItem.save();
